@@ -1,0 +1,174 @@
+import json
+from html import escape
+from pathlib import Path
+from datetime import datetime
+
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    PageBreak,
+)
+
+
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+EXPORTS_DIR = BACKEND_DIR / "exports"
+EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _safe_text(value) -> str:
+    if value is None:
+        return ""
+
+    if isinstance(value, (list, dict)):
+        value = json.dumps(value, ensure_ascii=False, indent=2)
+
+    return escape(str(value)).replace("\n", "<br/>")
+
+
+def create_package_pdf(package: dict) -> str:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    topic = str(package.get("topic", "content")).lower()
+
+    filename = f"AI_Content_OS_{topic}_{timestamp}.pdf"
+    file_path = EXPORTS_DIR / filename
+
+    content = package.get("content_package", {})
+
+    if isinstance(content, str):
+        try:
+            content = json.loads(content)
+        except json.JSONDecodeError:
+            content = {"generated_content": content}
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "TitleStyle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=26,
+        leading=31,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#171615"),
+        spaceAfter=12,
+    )
+
+    subtitle_style = ParagraphStyle(
+        "SubtitleStyle",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=11,
+        leading=16,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#6F675E"),
+        spaceAfter=22,
+    )
+
+    heading_style = ParagraphStyle(
+        "HeadingStyle",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=15,
+        leading=20,
+        textColor=colors.HexColor("#171615"),
+        spaceBefore=14,
+        spaceAfter=8,
+    )
+
+    body_style = ParagraphStyle(
+        "BodyStyle",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=10,
+        leading=16,
+        textColor=colors.HexColor("#3F3A35"),
+        spaceAfter=10,
+    )
+
+    small_style = ParagraphStyle(
+        "SmallStyle",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=9,
+        leading=14,
+        textColor=colors.HexColor("#756D64"),
+        spaceAfter=6,
+    )
+
+    document = SimpleDocTemplate(
+        str(file_path),
+        pagesize=A4,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=18 * mm,
+        bottomMargin=18 * mm,
+        title="AI Content OS Daily Content Package",
+        author="AI Content OS",
+    )
+
+    story = [
+        Paragraph("AI CONTENT OS", title_style),
+        Paragraph(
+            "AI-powered editorial and social content package",
+            subtitle_style,
+        ),
+        Paragraph(
+            f"<b>Topic:</b> {_safe_text(package.get('topic', '')).upper()}",
+            small_style,
+        ),
+        Paragraph(
+            f"<b>Source:</b> {_safe_text(package.get('source', ''))}",
+            small_style,
+        ),
+        Paragraph(
+            f"<b>Article:</b> {_safe_text(package.get('article_title', ''))}",
+            small_style,
+        ),
+        Paragraph(
+            f"<b>Article link:</b> {_safe_text(package.get('article_link', ''))}",
+            small_style,
+        ),
+        Spacer(1, 10),
+    ]
+
+    sections = [
+        ("Editorial Headline", content.get("editorial_headline")),
+        ("Editorial Subtitle", content.get("editorial_subtitle")),
+        ("LinkedIn Option 1", content.get("linkedin_option_1")),
+        ("LinkedIn Option 2", content.get("linkedin_option_2")),
+        ("X Option 1", content.get("x_option_1")),
+        ("X Option 2", content.get("x_option_2")),
+        ("Instagram Option 1", content.get("instagram_option_1")),
+        ("Instagram Option 2", content.get("instagram_option_2")),
+        ("Quote Card", content.get("quote_card")),
+        ("Key Takeaways", content.get("infographic_points")),
+        ("Hero Image Direction", content.get("hero_image_prompt")),
+        ("Editorial Image Direction", content.get("editorial_image_prompt")),
+        ("Instagram Visual Direction", content.get("instagram_visual_prompt")),
+        ("Infographic Direction", content.get("infographic_visual_prompt")),
+    ]
+
+    for heading, value in sections:
+        if value:
+            story.append(Paragraph(heading, heading_style))
+            story.append(Paragraph(_safe_text(value), body_style))
+
+    story.extend(
+        [
+            Spacer(1, 18),
+            Paragraph(
+                "Generated by AI Content OS",
+                subtitle_style,
+            ),
+        ]
+    )
+
+    document.build(story)
+
+    return str(file_path)

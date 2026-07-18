@@ -1,0 +1,15 @@
+{
+  "status": "success",
+  "topic": "ai",
+  "source": "MarkTechPost",
+  "article_title": "Using Lift to Turn Research PDFs into Structured JSON with Controlled, Schema-Guided Field-Level Evaluation",
+  "article_link": "https://www.marktechpost.com/2026/07/01/using-lift-to-turn-research-pdfs-into-structured-json-with-controlled-schema-guided-field-level-evaluation/",
+  "available_sources": [
+    "Hugging Face Blog",
+    "VentureBeat AI",
+    "Google AI Blog",
+    "MarkTechPost",
+    "Unite AI"
+  ],
+  "content_package": "\n{\n  \"linkedin_option_1\": \"AI quota is temporarily exhausted. Please retry after a short break. This fallback keeps the dashboard working for demo purposes. #AI #Automation #Content\",\n  \"linkedin_option_2\": \"Even when AI APIs hit rate limits, a well-designed system should fail gracefully. AI Content OS now demonstrates error handling and fallback behavior. #AIAutomation #SoftwareEngineering #Gemini\",\n  \"x_option_1\": \"Gemini quota reached temporarily. Please retry shortly. #AI #Automation\",\n  \"x_option_2\": \"Good AI systems need graceful fallbacks, not crashes. #SoftwareEngineering #AI\",\n  \"instagram_option_1\": \"AI quota temporarily reached. The system is still running with fallback content. #AI #Automation #Tech #Content #Gemini\",\n  \"instagram_option_2\": \"Building reliable AI apps means handling API limits gracefully. #AI #Developer #Automation #SaaS #Content\",\n  \"hero_image_prompt\": \"Warm cream modern SaaS dashboard visual, abstract AI content engine, elegant cards, soft shadows, no people photos, premium European style\"\n}\n"
+}
