@@ -11,3 +11,5 @@ feedparser
 jinja2
 playwright
 pytest
+reportlab
+APScheduler<4
