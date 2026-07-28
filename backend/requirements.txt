@@ -13,3 +13,4 @@ playwright
 pytest
 reportlab
 APScheduler<4
+resend

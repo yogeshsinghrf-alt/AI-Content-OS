@@ -1,10 +1,10 @@
-import mimetypes
+import base64
 import os
-import smtplib
-from email.message import EmailMessage
 from pathlib import Path
 
+import resend
 from dotenv import load_dotenv
+
 
 load_dotenv()
 
@@ -15,24 +15,28 @@ def send_email(
     html_body: str | None = None,
     attachments: list[str] | None = None,
 ):
-    email_user = os.getenv("EMAIL_USER")
-    email_password = os.getenv("EMAIL_PASSWORD")
+    api_key = os.getenv("RESEND_API_KEY")
     email_to = os.getenv("EMAIL_TO")
+    email_from = os.getenv(
+        "RESEND_FROM",
+        "AI Content OS <onboarding@resend.dev>",
+    )
 
-    if not email_user or not email_password or not email_to:
+    if not api_key:
         return {
             "status": "error",
-            "message": "Email settings are missing in backend/.env",
+            "message": "RESEND_API_KEY is missing.",
         }
 
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = email_user
-    message["To"] = email_to
-    message.set_content(body)
+    if not email_to:
+        return {
+            "status": "error",
+            "message": "EMAIL_TO is missing.",
+        }
 
-    if html_body:
-        message.add_alternative(html_body, subtype="html")
+    resend.api_key = api_key
+
+    resend_attachments = []
 
     for attachment_path in attachments or []:
         path = Path(attachment_path)
@@ -40,29 +44,37 @@ def send_email(
         if not path.exists():
             continue
 
-        mime_type, _ = mimetypes.guess_type(path.name)
+        encoded_content = base64.b64encode(
+            path.read_bytes()
+        ).decode("utf-8")
 
-        if mime_type:
-            main_type, sub_type = mime_type.split("/", 1)
-        else:
-            main_type, sub_type = "application", "octet-stream"
+        resend_attachments.append(
+            {
+                "filename": path.name,
+                "content": encoded_content,
+            }
+        )
 
-        with path.open("rb") as file:
-            message.add_attachment(
-                file.read(),
-                maintype=main_type,
-                subtype=sub_type,
-                filename=path.name,
-            )
+    params: resend.Emails.SendParams = {
+        "from": email_from,
+        "to": [email_to],
+        "subject": subject,
+        "text": body,
+    }
+
+    if html_body:
+        params["html"] = html_body
+
+    if resend_attachments:
+        params["attachments"] = resend_attachments
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(email_user, email_password)
-            smtp.send_message(message)
+        result = resend.Emails.send(params)
 
         return {
             "status": "success",
-            "message": "Email sent successfully",
+            "message": "Email sent successfully through Resend.",
+            "email_id": result.get("id"),
         }
 
     except Exception as error:
