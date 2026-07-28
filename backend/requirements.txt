@@ -4,7 +4,7 @@ python-dotenv
 pydantic
 sqlalchemy
 psycopg2-binary
-google-generativeai
+google-genai
 requests
 beautifulsoup4
 feedparser
