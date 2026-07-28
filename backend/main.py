@@ -55,10 +55,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 app.include_router(news_router, prefix="/news", tags=["News"])
 app.include_router(ai_router, prefix="/ai", tags=["AI"])
