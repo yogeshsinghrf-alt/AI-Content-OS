@@ -9,6 +9,9 @@ import DashboardStats from "../components/DashboardStats";
 import Header from "../components/Header";
 import Toolbar from "../components/Toolbar";
 import SourcePanel from "../components/SourcePanel";
+const API =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
 export default function Home() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -23,13 +26,13 @@ export default function Home() {
 }, []);
   
 async function fetchHistory() {
-  const response = await fetch("http://127.0.0.1:8000/history/");
+  const response = await fetch(`${API}/history/`);
   const result = await response.json();
   setHistory(result);
 }
   async function loadHistory(filename: string) {
   const response = await fetch(
-    `http://127.0.0.1:8000/history/${filename}`
+    `${API}/history/${filename}`
   );
 
   const result = await response.json();
@@ -47,7 +50,7 @@ async function fetchHistory() {
 }
 async function deleteHistory(filename: string) {
   await fetch(
-    `http://127.0.0.1:8000/history/${filename}`,
+    `${API}/history/${filename}`,
     {
       method: "DELETE",
     }
@@ -59,7 +62,7 @@ async function generateContent() {
     setLoading(true);
 
     const response = await fetch(
-  `http://127.0.0.1:8000/package/daily?topic=${topic}`
+  `${API}/package/daily?topic=${topic}`
 );
 
     const result = await response.json();
@@ -76,7 +79,7 @@ async function generateContent() {
 
     setData(result);
     const imageResponse = await fetch(
-  `http://127.0.0.1:8000/image/generate?prompt=${encodeURIComponent(
+  `${API}/image/generate?prompt=${encodeURIComponent(
     result.content_package.hero_image_prompt
   )}`
 );
