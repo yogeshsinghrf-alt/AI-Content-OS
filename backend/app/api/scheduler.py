@@ -1,23 +1,11 @@
 from fastapi import APIRouter
+
 from app.services.scheduler_service import (
     run_daily_pipeline,
     run_topic_pipeline,
     scheduler,
 )
 
-
-@router.get("/run-daily")
-def run_daily_now():
-    run_daily_pipeline()
-
-    return {
-        "status": "success",
-        "message": "Daily AI, Telecom and Marketing pipeline completed.",
-    }
-from app.services.scheduler_service import (
-    run_topic_pipeline,
-    scheduler,
-)
 
 router = APIRouter()
 
@@ -49,4 +37,16 @@ def test_ai_pipeline():
     return {
         "status": "success",
         "message": "AI pipeline completed. Check history and email.",
+    }
+
+
+@router.get("/run-daily")
+def run_daily_now():
+    run_daily_pipeline()
+
+    return {
+        "status": "success",
+        "message": (
+            "Daily AI, Telecom and Marketing pipeline completed."
+        ),
     }
