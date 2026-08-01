@@ -1,9 +1,9 @@
 import os
+import threading
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Response
 
 from app.services.scheduler_service import (
-    run_daily_pipeline,
     run_topic_pipeline,
     scheduler,
 )
@@ -30,6 +30,15 @@ def verify_scheduler_secret(
         )
 
 
+def start_pipeline(topic: str) -> None:
+    worker = threading.Thread(
+        target=run_topic_pipeline,
+        args=(topic,),
+        daemon=True,
+    )
+    worker.start()
+
+
 @router.get("/status")
 def scheduler_status():
     jobs = scheduler.get_jobs()
@@ -50,80 +59,33 @@ def scheduler_status():
     }
 
 
-@router.get("/test-ai")
-def test_ai_pipeline():
-    run_topic_pipeline("ai")
-
-    return {
-        "status": "success",
-        "message": "AI pipeline completed.",
-    }
+@router.get("/ping", status_code=204)
+def scheduler_ping():
+    return Response(status_code=204)
 
 
-@router.get("/run-ai")
+@router.get("/run-ai", status_code=204)
 def run_ai(
-    background_tasks: BackgroundTasks,
     x_scheduler_secret: str | None = Header(default=None),
 ):
     verify_scheduler_secret(x_scheduler_secret)
-
-    background_tasks.add_task(
-        run_topic_pipeline,
-        "ai",
-    )
-
-    return {
-        "status": "accepted",
-        "message": "AI pipeline started in the background.",
-    }
+    start_pipeline("ai")
+    return Response(status_code=204)
 
 
-@router.get("/run-telecom")
+@router.get("/run-telecom", status_code=204)
 def run_telecom(
-    background_tasks: BackgroundTasks,
     x_scheduler_secret: str | None = Header(default=None),
 ):
     verify_scheduler_secret(x_scheduler_secret)
-
-    background_tasks.add_task(
-        run_topic_pipeline,
-        "telecom",
-    )
-
-    return {
-        "status": "accepted",
-        "message": "Telecom pipeline started in the background.",
-    }
+    start_pipeline("telecom")
+    return Response(status_code=204)
 
 
-@router.get("/run-marketing")
+@router.get("/run-marketing", status_code=204)
 def run_marketing(
-    background_tasks: BackgroundTasks,
     x_scheduler_secret: str | None = Header(default=None),
 ):
     verify_scheduler_secret(x_scheduler_secret)
-
-    background_tasks.add_task(
-        run_topic_pipeline,
-        "marketing",
-    )
-
-    return {
-        "status": "accepted",
-        "message": "Marketing pipeline started in the background.",
-    }
-
-
-@router.get("/run-daily")
-def run_daily_now(
-    background_tasks: BackgroundTasks,
-    x_scheduler_secret: str | None = Header(default=None),
-):
-    verify_scheduler_secret(x_scheduler_secret)
-
-    background_tasks.add_task(run_daily_pipeline)
-
-    return {
-        "status": "accepted",
-        "message": "Daily pipeline started in the background.",
-    }
+    start_pipeline("marketing")
+    return Response(status_code=204)
