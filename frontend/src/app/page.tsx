@@ -9,6 +9,7 @@ import DashboardStats from "../components/DashboardStats";
 import Header from "../components/Header";
 import Toolbar from "../components/Toolbar";
 import SourcePanel from "../components/SourcePanel";
+import VisualStudio from "../components/VisualStudio";
 const API =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://127.0.0.1:8000";
@@ -19,6 +20,9 @@ export default function Home() {
   const [history, setHistory] = useState<any[]>([]);
   const [activeView, setActiveView] = useState("dashboard");
   const [heroImage, setHeroImage] = useState("");
+  const [linkedinImage, setLinkedinImage] = useState("");
+  const [instagramImage, setInstagramImage] = useState("");
+  const [xImage, setXImage] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [historyTopic, setHistoryTopic] = useState("all");
   useEffect(() => {
@@ -78,16 +82,72 @@ async function generateContent() {
     }
 
     setData(result);
-    const imageResponse = await fetch(
-  `${API}/image/generate?prompt=${encodeURIComponent(
-    result.content_package.hero_image_prompt
-  )}`
-);
+    const packageData = result.content_package;
 
-const imageData = await imageResponse.json();
+const linkedinPrompt =
+  packageData.editorial_image_prompt ||
+  `${packageData.hero_image_prompt}. Professional LinkedIn business editorial visual, square composition, executives and technology, elegant, credible, premium corporate photography, no text.`;
 
-setHeroImage(imageData.image_url);
-    setLoading(false);
+const instagramPrompt =
+  packageData.instagram_visual_prompt ||
+  `${packageData.hero_image_prompt}. Instagram portrait visual, cinematic, warm premium editorial style, visually bold, modern magazine composition, no text.`;
+
+const xPrompt =
+  packageData.infographic_visual_prompt ||
+  `${packageData.hero_image_prompt}. Minimal technology visual for X, widescreen composition, clean futuristic design, strong focal point, no text.`;
+
+try {
+  const [
+    linkedinResponse,
+    instagramResponse,
+    xResponse,
+  ] = await Promise.all([
+    fetch(
+      `${API}/image/generate?prompt=${encodeURIComponent(
+        linkedinPrompt
+      )}`
+    ),
+    fetch(
+      `${API}/image/generate?prompt=${encodeURIComponent(
+        instagramPrompt
+      )}`
+    ),
+    fetch(
+      `${API}/image/generate?prompt=${encodeURIComponent(
+        xPrompt
+      )}`
+    ),
+  ]);
+
+  const [
+    linkedinData,
+    instagramData,
+    xData,
+  ] = await Promise.all([
+    linkedinResponse.json(),
+    instagramResponse.json(),
+    xResponse.json(),
+  ]);
+
+  setLinkedinImage(linkedinData.image_url || "");
+  setInstagramImage(instagramData.image_url || "");
+  setXImage(xData.image_url || "");
+
+  // Keep the main dashboard hero image.
+  setHeroImage(
+    linkedinData.image_url ||
+      instagramData.image_url ||
+      xData.image_url ||
+      ""
+  );
+} catch (imageError) {
+  console.error(
+    "Platform image generation failed:",
+    imageError
+  );
+}
+
+setLoading(false);
   }
 
   function copyText(text: string) {
@@ -324,7 +384,32 @@ return (
     />
   </div>
 )}
-
+<VisualStudio
+  headline={
+    data.content_package.editorial_headline ||
+    data.article_title ||
+    "AI Intelligence Brief"
+  }
+  linkedinText={
+    data.content_package.linkedin_option_1
+  }
+  instagramText={
+    data.content_package.instagram_option_1
+  }
+  xText={
+    data.content_package.x_option_1
+  }
+  linkedinImage={
+  linkedinImage || heroImage || undefined
+}
+instagramImage={
+  instagramImage || heroImage || undefined
+}
+xImage={
+  xImage || heroImage || undefined
+}
+  source={data.source}
+/>
 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
   <VisualCard
     id="hero-image"
