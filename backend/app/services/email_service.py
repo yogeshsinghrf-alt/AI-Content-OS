@@ -35,7 +35,7 @@ def send_email(
         }
 
     resend.api_key = api_key
-    print("Using RESEND API KEY:", api_key[:10], "...")
+    print("RESEND_API_KEY prefix:", api_key[:12])
     print("Sending email TO:", email_to)
     print("Sending email FROM:", email_from)
     resend_attachments = []
@@ -72,6 +72,9 @@ def send_email(
 
     try:
         result = resend.Emails.send(params)
+
+        print("RESEND RESULT:")
+        print(result)
 
         return {
             "status": "success",
