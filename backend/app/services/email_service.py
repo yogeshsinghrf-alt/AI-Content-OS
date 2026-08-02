@@ -35,7 +35,9 @@ def send_email(
         }
 
     resend.api_key = api_key
-
+    print("Using RESEND API KEY:", api_key[:10], "...")
+    print("Sending email TO:", email_to)
+    print("Sending email FROM:", email_from)
     resend_attachments = []
 
     for attachment_path in attachments or []:
