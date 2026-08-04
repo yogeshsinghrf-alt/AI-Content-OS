@@ -1,6 +1,6 @@
 import json
 from html import escape
-
+from datetime import date
 from fastapi import APIRouter
 
 from app.services.email_service import send_email
@@ -114,13 +114,19 @@ The complete content package is attached as a PDF.
 </body>
 </html>
 """
+    topic = str(latest.get("topic", "unknown")).lower()
+
+    idempotency_key = (
+    f"ai-content-os/{topic}/{date.today().isoformat()}"
+    )
 
     return send_email(
-        subject=(
-            f"AI Content OS — "
-            f"{str(latest.get('topic', '')).upper()} Package"
-        ),
-        body=plain_body,
-        html_body=html_body,
-        attachments=[pdf_path],
+    subject=(
+    f"AI Content OS — "
+    f"{topic.upper()} Package"
+    ),
+    body=plain_body,
+    html_body=html_body,
+    attachments=[pdf_path],
+    idempotency_key=idempotency_key,
     )

@@ -14,6 +14,7 @@ def send_email(
     body: str,
     html_body: str | None = None,
     attachments: list[str] | None = None,
+    idempotency_key: str | None = None,
 ):
     api_key = os.getenv("RESEND_API_KEY")
     email_to = os.getenv("EMAIL_TO")
@@ -68,9 +69,12 @@ def send_email(
         payload["attachments"] = resend_attachments
 
     headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
+    "Authorization": f"Bearer {api_key}",
+    "Content-Type": "application/json",
     }
+
+    if idempotency_key:
+    headers["Idempotency-Key"] = idempotency_key
 
     print("Sending email through Resend HTTP API")
     print("TO:", email_to)
