@@ -12,31 +12,69 @@ scheduler = BackgroundScheduler(
 def run_topic_pipeline(topic: str):
     """
     Generate one topic package, save it to history,
-    create its PDF and send the latest package by email.
+    create its PDF and send it by email.
     """
     print(f"Starting scheduled pipeline for: {topic}")
 
     try:
-        daily_package(topic=topic)
+        package_result = daily_package(topic=topic)
+
+        if not package_result:
+            raise RuntimeError(
+                f"Content generation returned no result for {topic}."
+            )
+
         email_result = send_latest_email()
+
+        if (
+            not isinstance(email_result, dict)
+            or email_result.get("status") != "success"
+        ):
+            raise RuntimeError(
+                f"Email delivery failed for {topic}: {email_result}"
+            )
+
+        result = {
+            "status": "success",
+            "topic": topic,
+            "email_id": email_result.get("email_id"),
+            "message": email_result.get("message"),
+        }
 
         print(
             f"Completed scheduled pipeline for {topic}: "
-            f"{email_result}"
+            f"{result}"
         )
 
+        return result
+
     except Exception as error:
+        result = {
+            "status": "error",
+            "topic": topic,
+            "message": str(error),
+        }
+
         print(
-            f"Scheduled pipeline failed for {topic}: {error}"
+            f"Scheduled pipeline failed for {topic}: "
+            f"{result}"
         )
+
+        return result
 
 
 def run_daily_pipeline():
     """
     Generate and email AI, Telecom and Marketing packages.
     """
+    results = []
+
     for topic in ["ai", "telecom", "marketing"]:
-        run_topic_pipeline(topic)
+        results.append(
+            run_topic_pipeline(topic)
+        )
+
+    return results
 
 
 def start_scheduler():
