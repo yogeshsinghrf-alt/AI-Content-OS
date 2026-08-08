@@ -69,12 +69,12 @@ def send_email(
         payload["attachments"] = resend_attachments
 
     headers = {
-    "Authorization": f"Bearer {api_key}",
-    "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
     }
 
     if idempotency_key:
-    headers["Idempotency-Key"] = idempotency_key
+        headers["Idempotency-Key"] = idempotency_key
 
     print("Sending email through Resend HTTP API")
     print("TO:", email_to)

@@ -37,7 +37,20 @@ def start_pipeline(topic: str) -> None:
         daemon=True,
     )
     worker.start()
+def start_daily_pipeline() -> None:
+    """
+    Run AI, Telecom and Marketing sequentially
+    in one background worker.
+    """
+    def worker():
+        for topic in ["ai", "telecom", "marketing"]:
+            run_topic_pipeline(topic)
 
+    thread = threading.Thread(
+        target=worker,
+        daemon=True,
+    )
+    thread.start()
 
 @router.get("/status")
 def scheduler_status():
@@ -89,3 +102,11 @@ def run_marketing(
     verify_scheduler_secret(x_scheduler_secret)
     start_pipeline("marketing")
     return Response(status_code=204)
+@router.get("/run-daily", status_code=204)
+def run_daily(
+    x_scheduler_secret: str | None = Header(default=None),
+):
+    verify_scheduler_secret(x_scheduler_secret)
+    start_daily_pipeline()
+
+    return Response(status_code=204)    

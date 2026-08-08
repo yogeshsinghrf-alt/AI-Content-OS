@@ -23,6 +23,9 @@ export default function Home() {
   const [linkedinImage, setLinkedinImage] = useState("");
   const [instagramImage, setInstagramImage] = useState("");
   const [xImage, setXImage] = useState("");
+  const [carouselImage, setCarouselImage] = useState("");
+  const [infographicImage, setInfographicImage] = useState("");
+  const [quoteImage, setQuoteImage] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [historyTopic, setHistoryTopic] = useState("all");
   useEffect(() => {
@@ -84,54 +87,132 @@ async function generateContent() {
     setData(result);
     const packageData = result.content_package;
 
-const linkedinPrompt =
-  packageData.editorial_image_prompt ||
-  `${packageData.hero_image_prompt}. Professional LinkedIn business editorial visual, square composition, executives and technology, elegant, credible, premium corporate photography, no text.`;
+const linkedinPrompt = `
+${packageData.hero_image_prompt}
 
-const instagramPrompt =
-  packageData.instagram_visual_prompt ||
-  `${packageData.hero_image_prompt}. Instagram portrait visual, cinematic, warm premium editorial style, visually bold, modern magazine composition, no text.`;
+Professional LinkedIn business editorial photography.
+Corporate executives.
+Premium office interiors.
+Natural lighting.
+European magazine style.
+No text.
+`;
 
-const xPrompt =
-  packageData.infographic_visual_prompt ||
-  `${packageData.hero_image_prompt}. Minimal technology visual for X, widescreen composition, clean futuristic design, strong focal point, no text.`;
+const instagramPrompt = `
+${packageData.hero_image_prompt}
 
+Luxury Instagram editorial.
+Warm cinematic lighting.
+Lifestyle composition.
+Elegant magazine photography.
+Portrait orientation.
+No text.
+`;
+
+const xPrompt = `
+${packageData.hero_image_prompt}
+
+Minimal technology illustration.
+Modern startup branding.
+Futuristic clean composition.
+Wide landscape.
+No text.
+`;
+const carouselPrompt = `
+${packageData.hero_image_prompt}
+
+Create a premium square carousel cover.
+Bold editorial composition, strong central concept,
+modern business magazine design, clean negative space,
+warm sophisticated palette, no written text, no logo.
+`;
+
+const infographicPrompt = `
+${packageData.hero_image_prompt}
+
+Create a portrait infographic background.
+Structured visual hierarchy, subtle data visualization elements,
+clean geometric shapes, elegant professional design,
+light background, ample space for text overlays,
+no written text, no logo.
+`;
+
+const quotePrompt = `
+${packageData.hero_image_prompt}
+
+Create a refined square quote-card background.
+Minimal artistic composition, soft lighting,
+warm cream and muted green palette,
+large clean negative space for a quotation,
+premium editorial design, no written text, no logo.
+`;
 try {
   const [
-    linkedinResponse,
-    instagramResponse,
-    xResponse,
-  ] = await Promise.all([
-    fetch(
-      `${API}/image/generate?prompt=${encodeURIComponent(
-        linkedinPrompt
-      )}`
-    ),
-    fetch(
-      `${API}/image/generate?prompt=${encodeURIComponent(
-        instagramPrompt
-      )}`
-    ),
-    fetch(
-      `${API}/image/generate?prompt=${encodeURIComponent(
-        xPrompt
-      )}`
-    ),
+  linkedinResponse,
+  instagramResponse,
+  xResponse,
+  carouselResponse,
+  infographicResponse,
+  quoteResponse,
+] = await Promise.all([
+  fetch(
+    `${API}/image/generate?platform=linkedin&prompt=${encodeURIComponent(
+      linkedinPrompt
+    )}`
+  ),
+
+  fetch(
+    `${API}/image/generate?platform=instagram&prompt=${encodeURIComponent(
+      instagramPrompt
+    )}`
+  ),
+
+  fetch(
+    `${API}/image/generate?platform=x&prompt=${encodeURIComponent(
+      xPrompt
+    )}`
+  ),
+
+  fetch(
+    `${API}/image/generate?platform=carousel&prompt=${encodeURIComponent(
+      carouselPrompt
+    )}`
+  ),
+
+  fetch(
+    `${API}/image/generate?platform=infographic&prompt=${encodeURIComponent(
+      infographicPrompt
+    )}`
+  ),
+
+  fetch(
+    `${API}/image/generate?platform=quote&prompt=${encodeURIComponent(
+      quotePrompt
+    )}`
+  ),
   ]);
 
   const [
-    linkedinData,
-    instagramData,
-    xData,
-  ] = await Promise.all([
-    linkedinResponse.json(),
-    instagramResponse.json(),
-    xResponse.json(),
-  ]);
-
+  linkedinData,
+  instagramData,
+  xData,
+  carouselData,
+  infographicData,
+  quoteData,
+] = await Promise.all([
+  linkedinResponse.json(),
+  instagramResponse.json(),
+  xResponse.json(),
+  carouselResponse.json(),
+  infographicResponse.json(),
+  quoteResponse.json(),
+]);
   setLinkedinImage(linkedinData.image_url || "");
   setInstagramImage(instagramData.image_url || "");
   setXImage(xData.image_url || "");
+  setCarouselImage(carouselData.image_url || "");
+  setInfographicImage(infographicData.image_url || "");
+  setQuoteImage(quoteData.image_url || "");
 
   // Keep the main dashboard hero image.
   setHeroImage(
@@ -390,23 +471,72 @@ return (
     data.article_title ||
     "AI Intelligence Brief"
   }
+
   linkedinText={
-    data.content_package.linkedin_option_1
+    data.content_package.linkedin_option_1 || ""
   }
+
   instagramText={
-    data.content_package.instagram_option_1
+    data.content_package.instagram_option_1 || ""
   }
+
   xText={
-    data.content_package.x_option_1
+    data.content_package.x_option_1 || ""
   }
+
+  carouselText={
+    data.content_package.visual_mode_1 ||
+    data.content_package.editorial_subtitle ||
+    ""
+  }
+
+  infographicText={
+    Array.isArray(
+      data.content_package.infographic_points
+    )
+      ? data.content_package.infographic_points.join(
+          " • "
+        )
+      : data.content_package.visual_mode_3 || ""
+  }
+
+  quoteText={
+    data.content_package.quote_card ||
+    data.content_package.visual_mode_2 ||
+    ""
+  }
+
   linkedinImage={
-  linkedinImage || heroImage || undefined
+    linkedinImage || heroImage || undefined
+  }
+
+  instagramImage={
+    instagramImage || heroImage || undefined
+  }
+
+  xImage={
+    xImage || heroImage || undefined
+  }
+
+  carouselImage={
+  carouselImage ||
+  linkedinImage ||
+  heroImage ||
+  undefined
 }
-instagramImage={
-  instagramImage || heroImage || undefined
+
+infographicImage={
+  infographicImage ||
+  instagramImage ||
+  heroImage ||
+  undefined
 }
-xImage={
-  xImage || heroImage || undefined
+
+quoteImage={
+  quoteImage ||
+  xImage ||
+  heroImage ||
+  undefined
 }
   source={data.source}
 />
