@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import os
 from pathlib import Path
 
@@ -54,8 +55,10 @@ def send_email(
             print(f"Attachment missing: {path}")
             continue
 
+        file_bytes = path.read_bytes()
+
         encoded_content = base64.b64encode(
-            path.read_bytes()
+            file_bytes
         ).decode("utf-8")
 
         resend_attachments.append(
@@ -67,6 +70,36 @@ def send_email(
 
     if resend_attachments:
         payload["attachments"] = resend_attachments
+
+    # Generate an idempotency key from the actual email content.
+    # Identical email + identical attachment = identical key.
+    # Newly generated content = new key.
+    if not idempotency_key:
+        fingerprint_parts = [
+            subject,
+            body,
+            html_body or "",
+        ]
+
+        for attachment_path in attachments or []:
+            path = Path(attachment_path)
+
+            if path.exists():
+                attachment_hash = hashlib.sha256(
+                    path.read_bytes()
+                ).hexdigest()
+
+                fingerprint_parts.append(
+                    attachment_hash
+                )
+
+        fingerprint = hashlib.sha256(
+            "|".join(fingerprint_parts).encode("utf-8")
+        ).hexdigest()[:24]
+
+        idempotency_key = (
+            f"ai-content-os/{fingerprint}"
+        )
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -80,6 +113,7 @@ def send_email(
     print("TO:", email_to)
     print("FROM:", email_from)
     print("Attachments:", len(resend_attachments))
+    print("Idempotency key:", idempotency_key)
 
     try:
         response = requests.post(
