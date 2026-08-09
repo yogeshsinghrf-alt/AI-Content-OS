@@ -10,6 +10,7 @@ import Header from "../components/Header";
 import Toolbar from "../components/Toolbar";
 import SourcePanel from "../components/SourcePanel";
 import VisualStudio from "../components/VisualStudio";
+import CarouselDeck from "../components/CarouselDeck";
 const API =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://127.0.0.1:8000";
@@ -66,11 +67,18 @@ async function deleteHistory(filename: string) {
   fetchHistory();
 }
 async function generateContent() {
-    setLoading(true);
+  setLoading(true);
 
+  try {
     const response = await fetch(
-  `${API}/package/daily?topic=${topic}`
-);
+      `${API}/package/daily?topic=${topic}`
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Content generation failed: ${response.status}`
+      );
+    }
 
     const result = await response.json();
 
@@ -81,156 +89,39 @@ async function generateContent() {
         result.content_package = JSON.parse(
           result.content_package
         );
-      } catch {}
+      } catch {
+        throw new Error(
+          "Generated content could not be parsed."
+        );
+      }
     }
 
     setData(result);
-    const packageData = result.content_package;
 
-const linkedinPrompt = `
-${packageData.hero_image_prompt}
+    // Image generation is temporarily disabled.
+    // Visual Studio will use its built-in design backgrounds.
+    setHeroImage("");
+    setLinkedinImage("");
+    setInstagramImage("");
+    setXImage("");
+    setCarouselImage("");
+    setInfographicImage("");
+    setQuoteImage("");
 
-Professional LinkedIn business editorial photography.
-Corporate executives.
-Premium office interiors.
-Natural lighting.
-European magazine style.
-No text.
-`;
+  } catch (error) {
+    console.error(
+      "Generate Content failed:",
+      error
+    );
 
-const instagramPrompt = `
-${packageData.hero_image_prompt}
+    alert(
+      "Could not generate the content package. Please make sure the backend is running."
+    );
 
-Luxury Instagram editorial.
-Warm cinematic lighting.
-Lifestyle composition.
-Elegant magazine photography.
-Portrait orientation.
-No text.
-`;
-
-const xPrompt = `
-${packageData.hero_image_prompt}
-
-Minimal technology illustration.
-Modern startup branding.
-Futuristic clean composition.
-Wide landscape.
-No text.
-`;
-const carouselPrompt = `
-${packageData.hero_image_prompt}
-
-Create a premium square carousel cover.
-Bold editorial composition, strong central concept,
-modern business magazine design, clean negative space,
-warm sophisticated palette, no written text, no logo.
-`;
-
-const infographicPrompt = `
-${packageData.hero_image_prompt}
-
-Create a portrait infographic background.
-Structured visual hierarchy, subtle data visualization elements,
-clean geometric shapes, elegant professional design,
-light background, ample space for text overlays,
-no written text, no logo.
-`;
-
-const quotePrompt = `
-${packageData.hero_image_prompt}
-
-Create a refined square quote-card background.
-Minimal artistic composition, soft lighting,
-warm cream and muted green palette,
-large clean negative space for a quotation,
-premium editorial design, no written text, no logo.
-`;
-try {
-  const [
-  linkedinResponse,
-  instagramResponse,
-  xResponse,
-  carouselResponse,
-  infographicResponse,
-  quoteResponse,
-] = await Promise.all([
-  fetch(
-    `${API}/image/generate?platform=linkedin&prompt=${encodeURIComponent(
-      linkedinPrompt
-    )}`
-  ),
-
-  fetch(
-    `${API}/image/generate?platform=instagram&prompt=${encodeURIComponent(
-      instagramPrompt
-    )}`
-  ),
-
-  fetch(
-    `${API}/image/generate?platform=x&prompt=${encodeURIComponent(
-      xPrompt
-    )}`
-  ),
-
-  fetch(
-    `${API}/image/generate?platform=carousel&prompt=${encodeURIComponent(
-      carouselPrompt
-    )}`
-  ),
-
-  fetch(
-    `${API}/image/generate?platform=infographic&prompt=${encodeURIComponent(
-      infographicPrompt
-    )}`
-  ),
-
-  fetch(
-    `${API}/image/generate?platform=quote&prompt=${encodeURIComponent(
-      quotePrompt
-    )}`
-  ),
-  ]);
-
-  const [
-  linkedinData,
-  instagramData,
-  xData,
-  carouselData,
-  infographicData,
-  quoteData,
-] = await Promise.all([
-  linkedinResponse.json(),
-  instagramResponse.json(),
-  xResponse.json(),
-  carouselResponse.json(),
-  infographicResponse.json(),
-  quoteResponse.json(),
-]);
-  setLinkedinImage(linkedinData.image_url || "");
-  setInstagramImage(instagramData.image_url || "");
-  setXImage(xData.image_url || "");
-  setCarouselImage(carouselData.image_url || "");
-  setInfographicImage(infographicData.image_url || "");
-  setQuoteImage(quoteData.image_url || "");
-
-  // Keep the main dashboard hero image.
-  setHeroImage(
-    linkedinData.image_url ||
-      instagramData.image_url ||
-      xData.image_url ||
-      ""
-  );
-} catch (imageError) {
-  console.error(
-    "Platform image generation failed:",
-    imageError
-  );
-}
-
-setLoading(false);
+  } finally {
+    setLoading(false);
   }
-
+}
   function copyText(text: string) {
     navigator.clipboard.writeText(text);
     alert("Copied!");
@@ -540,73 +431,100 @@ quoteImage={
 }
   source={data.source}
 />
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-  <VisualCard
-    id="hero-image"
-    title="Hero Image"
-    content={data.content_package.hero_image_prompt}
-  />
+<CarouselDeck
+  headline={
+    data.content_package.editorial_headline ||
+    data.article_title ||
+    "Industry Intelligence"
+  }
+  subtitle={
+    data.content_package.editorial_subtitle || ""
+  }
+  points={
+    Array.isArray(
+      data.content_package.infographic_points
+    )
+      ? data.content_package.infographic_points
+      : []
+  }
+  source={data.source}
+/>
 
+<div className="mt-10 mb-8">
+  <p className="text-xs uppercase tracking-[4px] text-[#8B8175] mb-3">
+    VISUAL DIRECTIONS
+  </p>
+
+  <h2 className="text-4xl font-black text-[#171615]">
+    Image & Infographic Concepts
+  </h2>
+</div>
+
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
   <VisualCard
     id="editorial-image"
     title="Editorial Image"
-    content={data.content_package.editorial_image_prompt}
-
+    content={
+      data.content_package.editorial_image_prompt
+    }
   />
 
   <VisualCard
     id="instagram-visual"
     title="Instagram Visual"
-    content={data.content_package.instagram_visual_prompt}
-
+    content={
+      data.content_package.instagram_visual_prompt
+    }
   />
 
   <VisualCard
     id="infographic-visual"
     title="Infographic Visual"
-    content={data.content_package.infographic_visual_prompt}
-
+    content={
+      data.content_package.infographic_visual_prompt
+    }
   />
 </div>
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
   <ContentCard
-    
     id="visual-editorial-cover"
     title="📰 Editorial Cover"
-    content={data.content_package.visual_mode_1}
+    content={
+      data.content_package.visual_mode_1
+    }
     copyText={copyText}
   />
 
   <ContentCard
-    
     id="visual-quote-card"
     title="❝ Quote Card"
-    content={data.content_package.visual_mode_2}
+    content={
+      data.content_package.visual_mode_2
+    }
     copyText={copyText}
-
   />
 
   <ContentCard
-    
     id="visual-infographic-concept"
     title="📊 Infographic Concept"
-    content={data.content_package.visual_mode_3}
+    content={
+      data.content_package.visual_mode_3
+    }
     copyText={copyText}
-
   />
 
   <ContentCard
     id="visual-instagram-card"
     title="📷 Instagram Visual"
-    content={data.content_package.visual_mode_4}
+    content={
+      data.content_package.visual_mode_4
+    }
     copyText={copyText}
-
   />
-
 </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
- 
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6"> 
               <ContentCard
                 
                 id="linkedin-option-1"

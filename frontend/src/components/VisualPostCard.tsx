@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef } from "react";
+import { toPng } from "html-to-image";
+import jsPDF from "jspdf";
 
 type Platform =
   | "linkedin"
@@ -64,7 +66,23 @@ function shortenText(text: string, limit: number) {
     ? `${text.slice(0, limit).trim()}…`
     : text;
 }
+function cleanDisplayText(
+  text: string,
+  limit: number
+) {
+  if (!text) return "";
 
+  const cleaned = text
+    // Remove URLs
+    .replace(/https?:\/\/\S+/g, "")
+    // Remove hashtags from visual artwork
+    .replace(/#[\w-]+/g, "")
+    // Remove excessive whitespace
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return shortenText(cleaned, limit);
+}
 export default function VisualPostCard({
   platform,
   headline,
@@ -74,7 +92,242 @@ export default function VisualPostCard({
 }: VisualPostCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const config = platformConfig[platform];
+  async function createPng() {
+  if (!cardRef.current) {
+    throw new Error("Visual card not found.");
+  }
 
+  return await toPng(cardRef.current, {
+    cacheBust: true,
+    pixelRatio: 1,
+    width: config.width,
+    height: config.height,
+  });
+}
+
+async function downloadPng() {
+  try {
+    const dataUrl = await createPng();
+
+    const link = document.createElement("a");
+    link.download = `${platform}-post.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (error) {
+    console.error("PNG export error:", error);
+    alert("PNG export failed.");
+  }
+}
+
+async function downloadPdf() {
+  try {
+    const dataUrl = await createPng();
+
+    const orientation =
+      config.width > config.height
+        ? "landscape"
+        : "portrait";
+
+    const pdf = new jsPDF({
+      orientation,
+      unit: "px",
+      format: [config.width, config.height],
+    });
+
+    pdf.addImage(
+      dataUrl,
+      "PNG",
+      0,
+      0,
+      config.width,
+      config.height
+    );
+
+    pdf.save(`${platform}-post.pdf`);
+  } catch (error) {
+    console.error("PDF export error:", error);
+    alert("PDF export failed.");
+  }
+}
+
+async function printCard() {
+  try {
+    const dataUrl = await createPng();
+
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+      alert("Please allow pop-ups for printing.");
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${config.label}</title>
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: white;
+            }
+
+            body {
+              min-height: 100vh;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+
+            img {
+              display: block;
+              max-width: 100%;
+              max-height: 100vh;
+              object-fit: contain;
+            }
+
+            @page {
+              margin: 0;
+            }
+          </style>
+        </head>
+
+        <body>
+          <img src="${dataUrl}" />
+
+          <script>
+            window.onload = function () {
+              window.focus();
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+  } catch (error) {
+    console.error("Print error:", error);
+    alert("Print preparation failed.");
+  }
+}
+  async function createPngDataUrl() {
+  if (!cardRef.current) {
+    throw new Error("Visual card is not available.");
+  }
+
+  return await toPng(cardRef.current, {
+    cacheBust: true,
+    pixelRatio: 1,
+    width: config.width,
+    height: config.height,
+  });
+}
+
+async function downloadPng() {
+  try {
+    const dataUrl = await createPngDataUrl();
+
+    const link = document.createElement("a");
+    link.download = `${platform}-visual.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (error) {
+    console.error("PNG export failed:", error);
+    alert("Could not download PNG.");
+  }
+}
+
+async function downloadPdf() {
+  try {
+    const dataUrl = await createPngDataUrl();
+
+    const orientation =
+      config.width > config.height
+        ? "landscape"
+        : "portrait";
+
+    const pdf = new jsPDF({
+      orientation,
+      unit: "px",
+      format: [config.width, config.height],
+    });
+
+    pdf.addImage(
+      dataUrl,
+      "PNG",
+      0,
+      0,
+      config.width,
+      config.height
+    );
+
+    pdf.save(`${platform}-visual.pdf`);
+  } catch (error) {
+    console.error("PDF export failed:", error);
+    alert("Could not download PDF.");
+  }
+}
+
+async function printCard() {
+  try {
+    const dataUrl = await createPngDataUrl();
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+      alert("Please allow pop-ups for printing.");
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${config.label}</title>
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: white;
+            }
+
+            body {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+            }
+
+            img {
+              max-width: 100%;
+              max-height: 100vh;
+              object-fit: contain;
+            }
+
+            @page {
+              margin: 0;
+            }
+          </style>
+        </head>
+        <body>
+          <img src="${dataUrl}" />
+          <script>
+            window.onload = function () {
+              window.focus();
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+  } catch (error) {
+    console.error("Print failed:", error);
+    alert("Could not prepare this visual for printing.");
+  }
+}
   const backgroundStyle = imageUrl
     ? {
         backgroundImage: `url("${imageUrl}")`,
@@ -99,7 +352,7 @@ export default function VisualPostCard({
         <div className="flex flex-1 flex-col justify-between p-14">
           <div>
             <p className="mb-6 text-xl font-semibold uppercase tracking-[0.28em] text-[#84796B]">
-              Business Intelligence
+              EXECUTIVE BRIEF
             </p>
 
             <h2
@@ -110,7 +363,7 @@ export default function VisualPostCard({
             </h2>
 
             <p className="mt-7 max-w-[90%] text-2xl leading-relaxed text-[#5E574F]">
-              {shortenText(content, 240)}
+              {cleanDisplayText(content, 150)}
             </p>
           </div>
 
@@ -144,18 +397,18 @@ export default function VisualPostCard({
 
           <div>
             <p className="mb-7 text-xl uppercase tracking-[0.3em] text-white/70">
-              Today’s intelligence
+              THE BRIEF
             </p>
 
             <h2
               className="text-7xl leading-[0.95]"
               style={{ fontFamily: "Instrument Serif" }}
             >
-              {shortenText(headline, 95)}
+              {shortenText(headline, 72)}
             </h2>
 
             <p className="mt-8 max-w-[90%] text-2xl leading-relaxed text-white/85">
-              {shortenText(content, 190)}
+              {cleanDisplayText(content, 105)}
             </p>
           </div>
 
@@ -188,18 +441,18 @@ export default function VisualPostCard({
 
           <div>
             <p className="mb-6 text-lg uppercase tracking-[0.28em] text-white/50">
-              One idea to watch
+              SIGNAL / TODAY
             </p>
 
             <h2
               className="text-6xl leading-[0.98]"
               style={{ fontFamily: "Instrument Serif" }}
             >
-              {shortenText(headline, 95)}
+              {shortenText(headline, 68)}
             </h2>
 
             <p className="mt-7 text-2xl leading-relaxed text-white/70">
-              {shortenText(content, 180)}
+              {cleanDisplayText(content, 95)}
             </p>
           </div>
 
@@ -255,56 +508,106 @@ export default function VisualPostCard({
   }
 
   function renderInfographic() {
-    const points = content
-      .split("•")
-      .map((point) => point.trim())
-      .filter(Boolean)
-      .slice(0, 4);
+  const points = content
+    .split("•")
+    .map((point) => point.trim())
+    .filter(Boolean)
+    .slice(0, 4);
 
-    return (
-      <div className="flex h-full flex-col bg-[#F7F3EB] p-14 text-[#171615]">
-        <div className="flex items-center justify-between">
-          <strong className="text-xl tracking-[0.25em]">
+  const safePoints =
+    points.length > 0
+      ? points
+      : [
+          "A major shift is happening in the market.",
+          "Adoption is accelerating across industries.",
+          "Business impact is becoming measurable.",
+          "Early movers may gain a competitive advantage.",
+        ];
+
+  return (
+    <div className="flex h-full flex-col bg-[#F7F3EB] p-14 text-[#171615]">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-lg font-bold tracking-[0.28em]">
             AI CONTENT OS
-          </strong>
+          </p>
 
-          <span className="rounded-full bg-[#DFE8DF] px-6 py-3 text-lg font-semibold text-[#365243]">
-            KEY TAKEAWAYS
-          </span>
+          <p className="mt-2 text-sm uppercase tracking-[0.24em] text-[#8B8175]">
+            Intelligence Infographic
+          </p>
         </div>
 
-        <h2
-          className="mt-14 max-w-[90%] text-6xl leading-[0.98]"
-          style={{ fontFamily: "Instrument Serif" }}
-        >
-          {shortenText(headline, 95)}
-        </h2>
+        <div className="rounded-full bg-[#DFE8DF] px-6 py-3 text-lg font-semibold text-[#365243]">
+          KEY SIGNALS
+        </div>
+      </div>
 
-        <div className="mt-12 grid flex-1 grid-cols-2 gap-7">
-          {(points.length ? points : [content]).map(
-            (point, index) => (
-              <div
-                key={index}
-                className="rounded-[34px] border border-[#DED7CC] bg-white p-8 shadow-sm"
-              >
-                <div className="mb-7 flex h-14 w-14 items-center justify-center rounded-full bg-[#E8DFCE] text-2xl font-bold">
-                  {index + 1}
-                </div>
+      {/* Headline */}
+      <h2
+        className="mt-12 max-w-[92%] text-6xl leading-[0.98]"
+        style={{
+          fontFamily: "Instrument Serif",
+        }}
+      >
+        {shortenText(headline, 90)}
+      </h2>
 
-                <p className="text-2xl leading-relaxed text-[#5E574F]">
-                  {shortenText(point, 125)}
-                </p>
+      {/* Insight cards */}
+      <div className="mt-12 grid grid-cols-2 gap-7">
+        {safePoints.map((point, index) => (
+          <div
+            key={index}
+            className="rounded-[32px] border border-[#DED7CC] bg-[#FFFDF9] p-8 shadow-sm"
+          >
+            <div className="flex items-center justify-between">
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E8DFCE] text-2xl font-bold">
+                {index + 1}
               </div>
-            )
-          )}
-        </div>
 
-        <p className="mt-10 border-t border-[#D8D0C4] pt-6 text-lg text-[#766D63]">
-          {source || "AI • Telecom • Marketing"}
+              <span className="text-sm font-semibold uppercase tracking-[2px] text-[#A19383]">
+                Signal
+              </span>
+            </div>
+
+            <p className="mt-7 text-2xl leading-relaxed text-[#5E574F]">
+              {shortenText(point, 120)}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Big takeaway */}
+      <div className="mt-8 rounded-[34px] bg-[#1D211E] p-9 text-white">
+        <p className="text-sm font-semibold uppercase tracking-[3px] text-white/55">
+          THE TAKEAWAY
+        </p>
+
+        <p
+          className="mt-5 text-3xl leading-snug"
+          style={{
+            fontFamily: "Instrument Serif",
+          }}
+        >
+          This development matters most where it creates
+          measurable business value, not just technological novelty.
         </p>
       </div>
-    );
-  }
+
+      {/* Footer */}
+      <div className="mt-auto flex items-center justify-between border-t border-[#D8D0C4] pt-6 text-lg text-[#766D63]">
+        <span>{source || "Industry Intelligence"}</span>
+
+        <span>
+          AI • Telecom • Marketing
+        </span>
+      </div>
+
+    </div>
+  );
+}
 
   function renderQuote() {
     return (
@@ -376,30 +679,56 @@ export default function VisualPostCard({
       </div>
 
       <div className="overflow-auto rounded-[24px] bg-[#EDE8DE] p-5">
-        <div
-          style={{
-            width: `${config.width * config.previewScale}px`,
-            height: `${config.height * config.previewScale}px`,
-          }}
-          className="mx-auto overflow-hidden rounded-[20px] shadow-xl"
-        >
-          <div
-            ref={cardRef}
-            style={{
-              width: `${config.width}px`,
-              height: `${config.height}px`,
-              transform: `scale(${config.previewScale})`,
-              transformOrigin: "top left",
-            }}
-          >
-            {renderDesign()}
-          </div>
-        </div>
+  <div
+    style={{
+      width: `${config.width * config.previewScale}px`,
+      height: `${config.height * config.previewScale}px`,
+    }}
+    className="mx-auto overflow-hidden rounded-[20px] shadow-xl"
+  >
+    <div
+      style={{
+        width: `${config.width}px`,
+        height: `${config.height}px`,
+        transform: `scale(${config.previewScale})`,
+        transformOrigin: "top left",
+      }}
+    >
+      <div
+        ref={cardRef}
+        style={{
+          width: `${config.width}px`,
+          height: `${config.height}px`,
+        }}
+      >
+        {renderDesign()}
       </div>
+    </div>
+  </div>
+</div>
 
-      <div className="mt-5 rounded-2xl border border-[#E6E0D6] bg-[#F8F4EC] px-5 py-4 text-sm text-[#6F675E]">
-        Export controls will be restored after the visual layouts are finalized.
-      </div>
+<div className="mt-5 flex flex-wrap gap-3">
+  <button
+    onClick={downloadPng}
+    className="rounded-2xl bg-[#171615] px-5 py-3 font-semibold text-white transition hover:bg-[#302D29]"
+  >
+    Download PNG
+  </button>
+
+  <button
+    onClick={downloadPdf}
+    className="rounded-2xl border border-[#171615] bg-white px-5 py-3 font-semibold text-[#171615] transition hover:bg-[#F2EEE6]"
+  >
+    Download PDF
+  </button>
+
+  <button
+    onClick={printCard}
+    className="rounded-2xl border border-[#D9D2C7] bg-white px-5 py-3 font-semibold text-[#171615] transition hover:bg-[#F5F2EA]"
+  >
+    Print
+  </button>
+    </div>
     </div>
   );
 }
