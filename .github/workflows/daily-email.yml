@@ -18,13 +18,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        - name: Restore content history
+
+      - name: Restore content history
         uses: actions/cache/restore@v4
         with:
           path: backend/history
           key: ai-content-history-${{ github.run_id }}
           restore-keys: |
             ai-content-history-
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -36,15 +38,16 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run daily content pipeline
-            - name: Save updated content history
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: backend/history
-          key: ai-content-history-${{ github.run_id }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           RESEND_FROM: ${{ secrets.RESEND_FROM }}
         run: python run_daily_job.py
+
+      - name: Save updated content history
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: backend/history
+          key: ai-content-history-${{ github.run_id }}
