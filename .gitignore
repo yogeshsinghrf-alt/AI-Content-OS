@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 backend/.env
 __pycache__/
 *.pyc
@@ -8,3 +10,4 @@ node_modules/
 .next/
 backend/history/
 backend/exports/
+backend/generated_images/
