@@ -98,16 +98,141 @@ async function generateContent() {
 
     setData(result);
 
-    // Image generation is temporarily disabled.
-    // Visual Studio will use its built-in design backgrounds.
-    setHeroImage("");
-    setLinkedinImage("");
-    setInstagramImage("");
-    setXImage("");
-    setCarouselImage("");
-    setInfographicImage("");
-    setQuoteImage("");
+    // Reset previous visuals
+setHeroImage("");
+setLinkedinImage("");
+setInstagramImage("");
+setXImage("");
+setCarouselImage("");
+setInfographicImage("");
+setQuoteImage("");
 
+
+// ------------------------------------
+// Generate platform visuals in parallel
+// ------------------------------------
+
+try {
+  const content = result.content_package || {};
+
+  const linkedinPrompt =
+    content.editorial_image_prompt ||
+    content.hero_image_prompt ||
+    result.article_title ||
+    "Premium business editorial visual";
+
+  const instagramPrompt =
+    content.instagram_visual_prompt ||
+    content.hero_image_prompt ||
+    result.article_title ||
+    "Premium Instagram editorial visual";
+
+  const xPrompt =
+    content.hero_image_prompt ||
+    content.editorial_image_prompt ||
+    result.article_title ||
+    "Premium wide business editorial visual";
+
+  async function generatePlatformImage(
+    prompt: string,
+    platform: string
+  ) {
+    const params = new URLSearchParams({
+      prompt,
+      platform,
+    });
+
+    const response = await fetch(
+      `${API}/image/generate?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `${platform} image failed: ${response.status}`
+      );
+    }
+
+    return response.json();
+  }
+
+  const [
+    linkedinResult,
+    instagramResult,
+    xResult,
+  ] = await Promise.allSettled([
+    generatePlatformImage(
+      linkedinPrompt,
+      "linkedin"
+    ),
+    generatePlatformImage(
+      instagramPrompt,
+      "instagram"
+    ),
+    generatePlatformImage(
+      xPrompt,
+      "x"
+    ),
+  ]);
+
+  if (
+    linkedinResult.status === "fulfilled"
+  ) {
+    const url =
+      linkedinResult.value.image_url || "";
+
+    setLinkedinImage(url);
+    setHeroImage(url);
+  }
+
+  if (
+    instagramResult.status === "fulfilled"
+  ) {
+    setInstagramImage(
+      instagramResult.value.image_url || ""
+    );
+  }
+
+  if (
+    xResult.status === "fulfilled"
+  ) {
+    setXImage(
+      xResult.value.image_url || ""
+    );
+  }
+
+  if (
+    linkedinResult.status === "rejected"
+  ) {
+    console.error(
+      "LinkedIn visual failed:",
+      linkedinResult.reason
+    );
+  }
+
+  if (
+    instagramResult.status === "rejected"
+  ) {
+    console.error(
+      "Instagram visual failed:",
+      instagramResult.reason
+    );
+  }
+
+  if (
+    xResult.status === "rejected"
+  ) {
+    console.error(
+      "X visual failed:",
+      xResult.reason
+    );
+  }
+
+} catch (imageError) {
+  console.error(
+    "Platform visual generation failed:",
+    imageError
+  );
+}
   } catch (error) {
     console.error(
       "Generate Content failed:",
@@ -447,6 +572,9 @@ quoteImage={
       ? data.content_package.infographic_points
       : []
   }
+  linkedinImage={linkedinImage || undefined}
+  instagramImage={instagramImage || undefined}
+  xImage={xImage || undefined}
   source={data.source}
 />
 
