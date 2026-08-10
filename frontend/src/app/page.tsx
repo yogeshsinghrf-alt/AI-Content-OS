@@ -360,8 +360,9 @@ return (
     </div>
   </div>
 )}  
-   <Header />
-
+   <div className="space-y-0">
+  <Header />
+  <div className="mt-7">
    <Toolbar
      topic={topic}
      loading={loading}
@@ -370,7 +371,8 @@ return (
      onCopyAll={copyAllContent}
      onExportPDF={() => window.print()}
    />
-
+  </div>
+  </div>
    <DashboardStats topic={topic} />
         
 <HistoryPanel
