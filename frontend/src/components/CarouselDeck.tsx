@@ -9,33 +9,37 @@ type CarouselDeckProps = {
   subtitle?: string;
   points?: string[];
   source?: string;
-
-  linkedinImage?: string;
-  instagramImage?: string;
-  xImage?: string;
+  imageUrl?: string;
 };
+
+function shortenText(text: string, limit: number) {
+  if (!text) return "";
+
+  return text.length > limit
+    ? `${text.slice(0, limit).trim()}…`
+    : text;
+}
 
 export default function CarouselDeck({
   headline,
   subtitle = "",
   points = [],
   source = "AI Content OS",
-
-  linkedinImage,
-  instagramImage,
-  xImage,
+  imageUrl,
 }: CarouselDeckProps) {
   const slideRefs =
     useRef<(HTMLDivElement | null)[]>([]);
 
-  const safePoints = points.length
-    ? points
-    : [
-        "Understand the development",
-        "Evaluate the business impact",
-        "Watch what happens next",
-        "Identify the opportunity",
-      ];
+  const safePoints = [
+    points[0] ||
+      "Understand the development shaping the market.",
+    points[1] ||
+      "Evaluate why this matters for business and technology.",
+    points[2] ||
+      "Watch adoption, execution and competitive response.",
+    points[3] ||
+      "Identify where measurable business value may emerge.",
+  ];
 
   const slides = [
     {
@@ -45,63 +49,37 @@ export default function CarouselDeck({
       body:
         subtitle ||
         "A concise look at the development shaping today's technology landscape.",
-      image: linkedinImage,
-      layout: "cover",
     },
-
     {
       number: "02",
       eyebrow: "WHAT HAPPENED",
       title: "The development",
-      body:
-        safePoints[0] ||
-        subtitle ||
-        "A significant development is changing the direction of the industry.",
-      image: instagramImage,
-      layout: "split",
+      body: safePoints[0],
     },
-
     {
       number: "03",
       eyebrow: "WHY IT MATTERS",
       title: "The bigger picture",
-      body:
-        safePoints[1] ||
-        "The importance lies in how this changes business, technology and competitive strategy.",
-      image: undefined,
-      layout: "editorial",
+      body: safePoints[1],
     },
-
     {
       number: "04",
       eyebrow: "WHAT TO WATCH",
       title: "The next signal",
-      body:
-        safePoints[2] ||
-        "Watch adoption, competitive response and real-world implementation.",
-      image: xImage,
-      layout: "image",
+      body: safePoints[2],
     },
-
     {
       number: "05",
       eyebrow: "BUSINESS IMPACT",
-      title: "Where the opportunity is",
-      body:
-        safePoints[3] ||
-        "Organizations that translate this development into practical workflows may gain an early advantage.",
-      image: undefined,
-      layout: "statement",
+      title: "Where value may emerge",
+      body: safePoints[3],
     },
-
     {
       number: "06",
-      eyebrow: "THE TAKEAWAY",
-      title: "Follow the signal, not the noise.",
+      eyebrow: "TAKEAWAY",
+      title: "The signal behind the noise",
       body:
-        "Focus on where the development creates measurable business value and durable competitive advantage.",
-      image: linkedinImage,
-      layout: "closing",
+        "Follow the technology, but focus on where it creates measurable business value.",
     },
   ];
 
@@ -120,6 +98,7 @@ export default function CarouselDeck({
     return await toPng(slide, {
       cacheBust: true,
       pixelRatio: 2,
+      backgroundColor: "#F7F1E7",
     });
   }
 
@@ -137,7 +116,10 @@ export default function CarouselDeck({
         `carousel-slide-${index + 1}.png`;
 
       link.href = dataUrl;
+
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     } catch (error) {
       console.error(
         "Carousel PNG export failed:",
@@ -154,8 +136,8 @@ export default function CarouselDeck({
     try {
       const pdf = new jsPDF({
         orientation: "portrait",
-        unit: "px",
-        format: [1080, 1080],
+        unit: "mm",
+        format: [216, 216],
       });
 
       for (
@@ -168,7 +150,7 @@ export default function CarouselDeck({
 
         if (index > 0) {
           pdf.addPage(
-            [1080, 1080],
+            [216, 216],
             "portrait"
           );
         }
@@ -178,8 +160,10 @@ export default function CarouselDeck({
           "PNG",
           0,
           0,
-          1080,
-          1080
+          216,
+          216,
+          undefined,
+          "FAST"
         );
       }
 
@@ -198,566 +182,483 @@ export default function CarouselDeck({
     }
   }
 
-  async function printCarousel() {
-    try {
-      const images: string[] = [];
-
-      for (
-        let index = 0;
-        index < slides.length;
-        index++
-      ) {
-        images.push(
-          await createSlidePng(index)
-        );
-      }
-
-      const printWindow =
-        window.open("", "_blank");
-
-      if (!printWindow) {
-        alert(
-          "Please allow pop-ups for printing."
-        );
-        return;
-      }
-
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>AI Content OS Carousel</title>
-
-            <style>
-              body {
-                margin: 0;
-                background: white;
-              }
-
-              .slide {
-                width: 100%;
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                page-break-after: always;
-              }
-
-              img {
-                width: 100%;
-                max-width: 1080px;
-                height: auto;
-              }
-
-              @page {
-                margin: 0;
-              }
-            </style>
-          </head>
-
-          <body>
-            ${images
-              .map(
-                (image) => `
-                  <div class="slide">
-                    <img src="${image}" />
-                  </div>
-                `
-              )
-              .join("")}
-
-            <script>
-              window.onload = function () {
-                window.focus();
-                window.print();
-              };
-            </script>
-          </body>
-        </html>
-      `);
-
-      printWindow.document.close();
-    } catch (error) {
-      console.error(
-        "Carousel print failed:",
-        error
-      );
-
-      alert(
-        "Could not prepare carousel for printing."
-      );
-    }
-  }
-
   return (
-    <section className="mt-10">
-      <div className="mb-6">
-        <p className="text-xs font-bold uppercase tracking-[4px] text-[#9A8D7D]">
-          Carousel Studio
-        </p>
+    <section className="rounded-[32px] border border-[#E2DBD0] bg-[#FFFDF9] p-7 shadow-sm lg:p-9">
 
-        <h2
-          className="mt-2 text-4xl text-[#171615]"
-          style={{
-            fontFamily: "Instrument Serif",
-          }}
-        >
-          6-slide editorial carousel
-        </h2>
+      {/* HEADER */}
 
-        <p className="mt-2 text-[#6F675E]">
-          A visual editorial deck structured
-          for LinkedIn and Instagram.
-        </p>
-      </div>
+      <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
 
-      <div className="mb-8 flex flex-wrap gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[4px] text-[#927F68]">
+            Carousel Studio
+          </p>
+
+          <h2
+            className="mt-2 text-4xl text-[#171615]"
+            style={{
+              fontFamily:
+                "Instrument Serif",
+            }}
+          >
+            6-slide editorial carousel
+          </h2>
+
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6F675E]">
+            A publication-style story designed
+            for LinkedIn and Instagram.
+          </p>
+        </div>
+
         <button
           onClick={downloadCarouselPdf}
-          className="rounded-2xl bg-[#171615] px-5 py-3 font-semibold text-white hover:bg-[#302D29]"
+          className="w-fit rounded-2xl bg-[#171615] px-5 py-3 text-sm font-semibold text-white hover:bg-[#302D29]"
         >
           Download Full Carousel PDF
         </button>
-
-        <button
-          onClick={printCarousel}
-          className="rounded-2xl border border-[#171615] bg-white px-5 py-3 font-semibold text-[#171615] hover:bg-[#F2EEE6]"
-        >
-          Print Carousel
-        </button>
       </div>
 
+      {/* SLIDES */}
+
       <div className="grid gap-8 xl:grid-cols-2">
+
         {slides.map((slide, index) => (
+
           <div
             key={slide.number}
-            className="rounded-[32px] border border-[#E1D9CD] bg-[#FFFDF8] p-4 shadow-sm"
+            className="flex flex-col"
           >
-            {/* Actual square carousel artwork */}
+
+            {/* 540×540 preview = 1080×1080 export */}
+
             <div
-              ref={(element) => {
-                slideRefs.current[index] =
-                  element;
+              style={{
+                width: "540px",
+                height: "540px",
               }}
-              className="aspect-square overflow-hidden rounded-[26px] bg-[#F7F1E7]"
+              className="mx-auto max-w-full"
             >
-              {slide.layout === "cover" ? (
-                <CoverSlide
-                  slide={slide}
-                  source={source}
-                  index={index}
-                  total={slides.length}
-                />
-              ) : slide.layout === "split" ? (
-                <SplitSlide
-                  slide={slide}
-                  source={source}
-                  index={index}
-                  total={slides.length}
-                />
-              ) : slide.layout ===
-                "editorial" ? (
-                <EditorialSlide
-                  slide={slide}
-                  source={source}
-                  index={index}
-                  total={slides.length}
-                />
-              ) : slide.layout === "image" ? (
-                <ImageSlide
-                  slide={slide}
-                  source={source}
-                  index={index}
-                  total={slides.length}
-                />
-              ) : slide.layout ===
-                "statement" ? (
-                <StatementSlide
-                  slide={slide}
-                  source={source}
-                  index={index}
-                  total={slides.length}
-                />
-              ) : (
-                <ClosingSlide
-                  slide={slide}
-                  source={source}
-                  index={index}
-                  total={slides.length}
-                />
-              )}
+
+              <div
+                ref={(element) => {
+                  slideRefs.current[index] =
+                    element;
+                }}
+                style={{
+                  width: "540px",
+                  height: "540px",
+                  margin: 0,
+                  boxSizing: "border-box",
+                }}
+                className="relative flex flex-col overflow-hidden bg-[#F7F1E7]"
+              >
+
+                {/* SLIDE 1 — COVER */}
+
+                {index === 0 && (
+                  <>
+                    {imageUrl && (
+                      <img
+                        src={imageUrl}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover"
+                        crossOrigin="anonymous"
+                      />
+                    )}
+
+                    <div
+                      className={`absolute inset-0 ${
+                        imageUrl
+                          ? "bg-gradient-to-t from-black/85 via-black/30 to-black/15"
+                          : "bg-gradient-to-br from-[#17211C] via-[#344139] to-[#9C876D]"
+                      }`}
+                    />
+
+                    <div className="relative flex h-full flex-col justify-between p-10 text-white">
+
+                      <div className="flex items-center justify-between">
+                        <p className="text-[9px] font-bold uppercase tracking-[4px] text-white/75">
+                          AI CONTENT OS
+                        </p>
+
+                        <span className="rounded-full border border-white/30 bg-black/10 px-4 py-2 text-[9px] font-bold">
+                          01 / 06
+                        </span>
+                      </div>
+
+                      <div className="max-w-[94%]">
+
+                        <p className="mb-5 text-[9px] font-bold uppercase tracking-[4px] text-[#E2C9A5]">
+                          INTELLIGENCE BRIEF
+                        </p>
+
+                        <h3
+                          className="text-[47px] leading-[0.92]"
+                          style={{
+                            fontFamily:
+                              "Instrument Serif",
+                          }}
+                        >
+                          {shortenText(
+                            slide.title,
+                            95
+                          )}
+                        </h3>
+
+                        <p className="mt-6 max-w-[90%] text-[13px] leading-5 text-white/80">
+                          {shortenText(
+                            slide.body,
+                            150
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-white/25 pt-5 text-[9px] text-white/60">
+                        <span>
+                          {shortenText(
+                            source,
+                            35
+                          )}
+                        </span>
+
+                        <span>
+                          Swipe →
+                        </span>
+                      </div>
+
+                    </div>
+                  </>
+                )}
+
+                {/* SLIDE 2 — DEVELOPMENT */}
+
+                {index === 1 && (
+                  <div className="flex h-full flex-col p-10">
+
+                    <TopBar
+                      number="02"
+                    />
+
+                    <div className="mt-12">
+                      <p className="text-[9px] font-bold uppercase tracking-[4px] text-[#9A8167]">
+                        WHAT HAPPENED
+                      </p>
+
+                      <h3
+                        className="mt-4 text-[50px] leading-[0.92] text-[#171615]"
+                        style={{
+                          fontFamily:
+                            "Instrument Serif",
+                        }}
+                      >
+                        The development
+                      </h3>
+                    </div>
+
+                    <div className="my-auto rounded-[26px] bg-[#E7DDD0] p-7">
+
+                      <span
+                        className="text-[64px] leading-none text-[#AF977A]"
+                        style={{
+                          fontFamily:
+                            "Instrument Serif",
+                        }}
+                      >
+                        01
+                      </span>
+
+                      <p className="mt-5 text-[18px] font-semibold leading-7 text-[#292622]">
+                        {shortenText(
+                          slide.body,
+                          180
+                        )}
+                      </p>
+                    </div>
+
+                    <SlideFooter
+                      source={source}
+                    />
+                  </div>
+                )}
+
+                {/* SLIDE 3 — WHY IT MATTERS */}
+
+                {index === 2 && (
+                  <div className="flex h-full flex-col bg-[#E3EAE4] p-10">
+
+                    <TopBar
+                      number="03"
+                    />
+
+                    <div className="my-auto">
+
+                      <p className="text-[9px] font-bold uppercase tracking-[4px] text-[#66766A]">
+                        WHY IT MATTERS
+                      </p>
+
+                      <h3
+                        className="mt-5 max-w-[90%] text-[51px] leading-[0.92] text-[#18201B]"
+                        style={{
+                          fontFamily:
+                            "Instrument Serif",
+                        }}
+                      >
+                        The bigger picture
+                      </h3>
+
+                      <div className="mt-10 border-l-2 border-[#819184] pl-6">
+                        <p className="max-w-[90%] text-[18px] font-semibold leading-7 text-[#334038]">
+                          {shortenText(
+                            slide.body,
+                            190
+                          )}
+                        </p>
+                      </div>
+
+                    </div>
+
+                    <SlideFooter
+                      source={source}
+                    />
+                  </div>
+                )}
+
+                {/* SLIDE 4 — WATCH */}
+
+                {index === 3 && (
+                  <>
+                    {imageUrl && (
+                      <img
+                        src={imageUrl}
+                        alt=""
+                        crossOrigin="anonymous"
+                        className="absolute right-0 top-0 h-full w-[46%] object-cover"
+                      />
+                    )}
+
+                    <div className="relative flex h-full flex-col p-10">
+
+                      <TopBar
+                        number="04"
+                      />
+
+                      <div className="my-auto w-[52%]">
+
+                        <p className="text-[9px] font-bold uppercase tracking-[4px] text-[#9A8167]">
+                          WHAT TO WATCH
+                        </p>
+
+                        <h3
+                          className="mt-5 text-[48px] leading-[0.92] text-[#171615]"
+                          style={{
+                            fontFamily:
+                              "Instrument Serif",
+                          }}
+                        >
+                          The next signal
+                        </h3>
+
+                        <p className="mt-7 text-[15px] font-semibold leading-6 text-[#4C4640]">
+                          {shortenText(
+                            slide.body,
+                            155
+                          )}
+                        </p>
+
+                      </div>
+
+                      <SlideFooter
+                        source={source}
+                        narrow
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* SLIDE 5 — BUSINESS IMPACT */}
+
+                {index === 4 && (
+                  <div className="flex h-full flex-col bg-[#E8DED1] p-10">
+
+                    <TopBar
+                      number="05"
+                    />
+
+                    <div className="my-auto">
+
+                      <p className="text-[9px] font-bold uppercase tracking-[4px] text-[#90785F]">
+                        BUSINESS IMPACT
+                      </p>
+
+                      <h3
+                        className="mt-5 text-[49px] leading-[0.92] text-[#191714]"
+                        style={{
+                          fontFamily:
+                            "Instrument Serif",
+                        }}
+                      >
+                        Where value
+                        <br />
+                        may emerge
+                      </h3>
+
+                      <div className="mt-9 rounded-[24px] bg-[#FFF9F0] p-7">
+                        <p className="text-[17px] font-semibold leading-7 text-[#3A342E]">
+                          {shortenText(
+                            slide.body,
+                            185
+                          )}
+                        </p>
+                      </div>
+
+                    </div>
+
+                    <SlideFooter
+                      source={source}
+                    />
+                  </div>
+                )}
+
+                {/* SLIDE 6 — TAKEAWAY */}
+
+                {index === 5 && (
+                  <div className="flex h-full flex-col bg-[#18201C] p-10 text-white">
+
+                    <TopBar
+                      number="06"
+                      dark
+                    />
+
+                    <div className="my-auto">
+
+                      <span
+                        className="text-[76px] leading-none text-[#C7AE8D]"
+                        style={{
+                          fontFamily:
+                            "Instrument Serif",
+                        }}
+                      >
+                        ❝
+                      </span>
+
+                      <p className="mt-4 text-[9px] font-bold uppercase tracking-[4px] text-[#C7AE8D]">
+                        THE TAKEAWAY
+                      </p>
+
+                      <h3
+                        className="mt-5 max-w-[94%] text-[47px] leading-[0.94]"
+                        style={{
+                          fontFamily:
+                            "Instrument Serif",
+                        }}
+                      >
+                        The signal behind
+                        the noise
+                      </h3>
+
+                      <p className="mt-7 max-w-[88%] text-[16px] leading-7 text-white/75">
+                        {slide.body}
+                      </p>
+
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-white/20 pt-5 text-[9px] text-white/55">
+                      <span>
+                        {shortenText(
+                          source,
+                          35
+                        )}
+                      </span>
+
+                      <span className="uppercase tracking-[2px]">
+                        AI Content OS
+                      </span>
+                    </div>
+
+                  </div>
+                )}
+
+              </div>
             </div>
 
             <button
               onClick={() =>
                 downloadSlide(index)
               }
-              className="mt-4 rounded-full border border-[#CFC5B6] bg-white px-4 py-2 text-xs font-semibold text-[#574F47] hover:bg-[#F3EEE5]"
+              className="mx-auto mt-4 rounded-full border border-[#CFC5B6] bg-white px-5 py-2 text-xs font-semibold text-[#574F47] hover:bg-[#F3EEE5]"
             >
               Download Slide {index + 1} PNG
             </button>
+
           </div>
         ))}
+
       </div>
     </section>
   );
 }
 
+/* --------------------------------
+   Reusable slide elements
+-------------------------------- */
 
-/* -----------------------------------------
-   Shared footer
------------------------------------------ */
+function TopBar({
+  number,
+  dark = false,
+}: {
+  number: string;
+  dark?: boolean;
+}) {
+  return (
+    <div className="flex shrink-0 items-center justify-between">
+
+      <p
+        className={`text-[9px] font-bold uppercase tracking-[4px] ${
+          dark
+            ? "text-white/55"
+            : "text-[#766B60]"
+        }`}
+      >
+        AI CONTENT OS
+      </p>
+
+      <span
+        className={`rounded-full border px-4 py-2 text-[9px] font-bold ${
+          dark
+            ? "border-white/20 text-white/60"
+            : "border-[#D3C8B8] text-[#766B60]"
+        }`}
+      >
+        {number} / 06
+      </span>
+
+    </div>
+  );
+}
 
 function SlideFooter({
   source,
-  index,
-  total,
+  narrow = false,
 }: {
   source: string;
-  index: number;
-  total: number;
+  narrow?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between border-t border-black/10 pt-4 text-[11px] text-[#71685F]">
-      <span>{source}</span>
-
+    <div
+      className={`flex shrink-0 items-center justify-between border-t border-[#D1C7B8] pt-5 text-[9px] text-[#81766A] ${
+        narrow ? "w-[52%]" : ""
+      }`}
+    >
       <span>
-        {String(index + 1).padStart(
-          2,
-          "0"
-        )}{" "}
-        /{" "}
-        {String(total).padStart(
-          2,
-          "0"
+        {shortenText(
+          source,
+          32
         )}
       </span>
-    </div>
-  );
-}
 
-
-/* -----------------------------------------
-   Slide 1
------------------------------------------ */
-
-function CoverSlide({
-  slide,
-  source,
-  index,
-  total,
-}: any) {
-  return (
-    <div className="relative h-full">
-      {slide.image && (
-        <img
-          src={slide.image}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      )}
-
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10" />
-
-      <div className="relative flex h-full flex-col justify-between p-10 text-white">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[4px]">
-            AI CONTENT OS
-          </p>
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-bold uppercase tracking-[4px] text-white/70">
-            {slide.eyebrow}
-          </p>
-
-          <h3
-            className="max-w-[92%] text-5xl leading-[0.95]"
-            style={{
-              fontFamily:
-                "Instrument Serif",
-            }}
-          >
-            {slide.title}
-          </h3>
-
-          <p className="mt-5 max-w-[85%] text-base leading-7 text-white/80">
-            {slide.body}
-          </p>
-        </div>
-
-        <SlideFooter
-          source={source}
-          index={index}
-          total={total}
-        />
-      </div>
-    </div>
-  );
-}
-
-
-/* -----------------------------------------
-   Slide 2
------------------------------------------ */
-
-function SplitSlide({
-  slide,
-  source,
-  index,
-  total,
-}: any) {
-  return (
-    <div className="flex h-full flex-col bg-[#F7F1E7] p-8">
-      <div className="mb-5 flex h-[45%] overflow-hidden rounded-[22px] bg-[#DED8CD]">
-        {slide.image ? (
-          <img
-            src={slide.image}
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="h-full w-full bg-gradient-to-br from-[#E6DDCF] to-[#C7D5CD]" />
-        )}
-      </div>
-
-      <div className="flex flex-1 flex-col justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[4px] text-[#9A8167]">
-            {slide.eyebrow}
-          </p>
-
-          <h3
-            className="mt-3 text-4xl leading-none text-[#171615]"
-            style={{
-              fontFamily:
-                "Instrument Serif",
-            }}
-          >
-            {slide.title}
-          </h3>
-
-          <p className="mt-4 text-base leading-7 text-[#655D54]">
-            {slide.body}
-          </p>
-        </div>
-
-        <SlideFooter
-          source={source}
-          index={index}
-          total={total}
-        />
-      </div>
-    </div>
-  );
-}
-
-
-/* -----------------------------------------
-   Slide 3
------------------------------------------ */
-
-function EditorialSlide({
-  slide,
-  source,
-  index,
-  total,
-}: any) {
-  return (
-    <div className="flex h-full flex-col justify-between bg-[#E9E2D5] p-10">
-      <div className="flex justify-between">
-        <p className="text-xs font-bold uppercase tracking-[4px] text-[#826F5D]">
-          {slide.eyebrow}
-        </p>
-
-        <span className="text-6xl text-[#C4B39F]">
-          03
-        </span>
-      </div>
-
-      <div>
-        <h3
-          className="max-w-[90%] text-6xl leading-[0.9] text-[#171615]"
-          style={{
-            fontFamily:
-              "Instrument Serif",
-          }}
-        >
-          {slide.title}
-        </h3>
-
-        <div className="my-7 h-px w-20 bg-[#171615]" />
-
-        <p className="max-w-[85%] text-xl leading-8 text-[#62594F]">
-          {slide.body}
-        </p>
-      </div>
-
-      <SlideFooter
-        source={source}
-        index={index}
-        total={total}
-      />
-    </div>
-  );
-}
-
-
-/* -----------------------------------------
-   Slide 4
------------------------------------------ */
-
-function ImageSlide({
-  slide,
-  source,
-  index,
-  total,
-}: any) {
-  return (
-    <div className="relative h-full">
-      {slide.image && (
-        <img
-          src={slide.image}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      )}
-
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/80" />
-
-      <div className="relative flex h-full flex-col justify-between p-10 text-white">
-        <p className="text-xs font-bold uppercase tracking-[4px]">
-          {slide.eyebrow}
-        </p>
-
-        <div>
-          <h3
-            className="text-5xl leading-none"
-            style={{
-              fontFamily:
-                "Instrument Serif",
-            }}
-          >
-            {slide.title}
-          </h3>
-
-          <p className="mt-5 max-w-[85%] text-lg leading-7 text-white/85">
-            {slide.body}
-          </p>
-        </div>
-
-        <SlideFooter
-          source={source}
-          index={index}
-          total={total}
-        />
-      </div>
-    </div>
-  );
-}
-
-
-/* -----------------------------------------
-   Slide 5
------------------------------------------ */
-
-function StatementSlide({
-  slide,
-  source,
-  index,
-  total,
-}: any) {
-  return (
-    <div className="flex h-full flex-col justify-between bg-[#DDE5DE] p-10">
-      <p className="text-xs font-bold uppercase tracking-[4px] text-[#657269]">
-        {slide.eyebrow}
-      </p>
-
-      <div>
-        <span
-          className="text-8xl leading-none text-[#AEBFB3]"
-          style={{
-            fontFamily:
-              "Instrument Serif",
-          }}
-        >
-          “
-        </span>
-
-        <h3
-          className="-mt-5 max-w-[90%] text-5xl leading-[0.98] text-[#182019]"
-          style={{
-            fontFamily:
-              "Instrument Serif",
-          }}
-        >
-          {slide.title}
-        </h3>
-
-        <p className="mt-6 max-w-[85%] text-lg leading-8 text-[#526057]">
-          {slide.body}
-        </p>
-      </div>
-
-      <SlideFooter
-        source={source}
-        index={index}
-        total={total}
-      />
-    </div>
-  );
-}
-
-
-/* -----------------------------------------
-   Slide 6
------------------------------------------ */
-
-function ClosingSlide({
-  slide,
-  source,
-  index,
-  total,
-}: any) {
-  return (
-    <div className="relative h-full bg-[#171615]">
-      {slide.image && (
-        <img
-          src={slide.image}
-          alt=""
-          className="absolute right-0 top-0 h-full w-[48%] object-cover opacity-60"
-        />
-      )}
-
-      <div className="absolute inset-0 bg-gradient-to-r from-[#171615] via-[#171615]/95 to-[#171615]/30" />
-
-      <div className="relative flex h-full flex-col justify-between p-10 text-white">
-        <p className="text-xs font-bold uppercase tracking-[4px] text-white/60">
-          {slide.eyebrow}
-        </p>
-
-        <div className="max-w-[70%]">
-          <h3
-            className="text-6xl leading-[0.9]"
-            style={{
-              fontFamily:
-                "Instrument Serif",
-            }}
-          >
-            {slide.title}
-          </h3>
-
-          <p className="mt-6 text-lg leading-8 text-white/70">
-            {slide.body}
-          </p>
-        </div>
-
-        <SlideFooter
-          source={source}
-          index={index}
-          total={total}
-        />
-      </div>
+      <span className="uppercase tracking-[2px]">
+        Intelligence
+      </span>
     </div>
   );
 }

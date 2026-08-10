@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import VisualPostCard from "./VisualPostCard";
+import InfographicCard from "./InfographicCard";
+import QuoteCard from "./QuoteCard";
 
 type Platform =
   | "linkedin"
@@ -20,6 +22,7 @@ type VisualStudioProps = {
 
   carouselText?: string;
   infographicText?: string;
+  infographicPoints?: string[];
   quoteText?: string;
 
   linkedinImage?: string;
@@ -93,6 +96,7 @@ export default function VisualStudio({
 
   carouselText = "",
   infographicText = "",
+  infographicPoints = [],
   quoteText = "",
 
   linkedinImage,
@@ -247,19 +251,29 @@ export default function VisualStudio({
       </div>
 
       {/* Design preview */}
-      <div className="px-8 pb-10 pt-4 lg:px-10">
-        <VisualPostCard
-          platform={activePlatform}
-          headline={
-            activePlatform === "quote"
-              ? "An idea worth remembering"
-              : headline
-          }
-          content={active.content}
-          imageUrl={active.image}
-          source={source}
-        />
-      </div>
-    </section>
-  );
+<div className="px-8 pb-10 pt-4 lg:px-10">
+  {activePlatform === "infographic" ? (
+    <InfographicCard
+      headline={headline}
+      subtitle={infographicText}
+      points={infographicPoints}
+      source={source}
+    />
+  ) : activePlatform === "quote" ? (
+    <QuoteCard
+      quote={quoteText}
+      source={source}
+    />
+  ) : (
+    <VisualPostCard
+      platform={activePlatform}
+      headline={headline}
+      content={active.content}
+      imageUrl={active.image}
+      source={source}
+    />
+  )}
+</div>
+</section>
+);
 }

@@ -11,6 +11,7 @@ import Toolbar from "../components/Toolbar";
 import SourcePanel from "../components/SourcePanel";
 import VisualStudio from "../components/VisualStudio";
 import CarouselDeck from "../components/CarouselDeck";
+import SocialContentTabs from "../components/SocialContentTabs";
 const API =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://127.0.0.1:8000";
@@ -134,26 +135,56 @@ try {
     "Premium wide business editorial visual";
 
   async function generatePlatformImage(
-    prompt: string,
-    platform: string
-  ) {
-    const params = new URLSearchParams({
-      prompt,
-      platform,
-    });
+  prompt: string,
+  platform: string
+) {
+  const params = new URLSearchParams({
+    prompt,
+    platform,
+  });
 
-    const response = await fetch(
-      `${API}/image/generate?${params.toString()}`
+  const url =
+    `${API}/image/generate?${params.toString()}`;
+
+  // First attempt
+  let response = await fetch(url);
+
+  // Retry once for temporary server/image-generation failures
+  if (!response.ok && response.status >= 500) {
+    console.warn(
+      `${platform} image failed. Retrying...`
     );
 
-    if (!response.ok) {
-      throw new Error(
-        `${platform} image failed: ${response.status}`
-      );
+    await new Promise((resolve) =>
+      setTimeout(resolve, 1500)
+    );
+
+    response = await fetch(url);
+  }
+
+  if (!response.ok) {
+    let detail = "";
+
+    try {
+      const errorData = await response.json();
+
+      detail =
+        errorData?.detail ||
+        errorData?.message ||
+        "";
+    } catch {
+      // Keep generic error below
     }
 
-    return response.json();
+    throw new Error(
+      `${platform} image failed: ${response.status}${
+        detail ? ` - ${detail}` : ""
+      }`
+    );
   }
+
+  return response.json();
+}
 
   const [
     linkedinResult,
@@ -515,7 +546,13 @@ return (
         )
       : data.content_package.visual_mode_3 || ""
   }
-
+   infographicPoints={
+  Array.isArray(
+    data.content_package.infographic_points
+  )
+    ? data.content_package.infographic_points
+    : []
+  }
   quoteText={
     data.content_package.quote_card ||
     data.content_package.visual_mode_2 ||
@@ -572,10 +609,13 @@ quoteImage={
       ? data.content_package.infographic_points
       : []
   }
-  linkedinImage={linkedinImage || undefined}
-  instagramImage={instagramImage || undefined}
-  xImage={xImage || undefined}
+
   source={data.source}
+  imageUrl={
+    carouselImage ||
+    heroImage ||
+    undefined
+  }
 />
 
 <div className="mt-10 mb-8">
@@ -588,123 +628,34 @@ quoteImage={
   </h2>
 </div>
 
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-  <VisualCard
-    id="editorial-image"
-    title="Editorial Image"
-    content={
-      data.content_package.editorial_image_prompt
-    }
-  />
-
-  <VisualCard
-    id="instagram-visual"
-    title="Instagram Visual"
-    content={
-      data.content_package.instagram_visual_prompt
-    }
-  />
-
-  <VisualCard
-    id="infographic-visual"
-    title="Infographic Visual"
-    content={
-      data.content_package.infographic_visual_prompt
-    }
-  />
-</div>
-
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-  <ContentCard
-    id="visual-editorial-cover"
-    title="📰 Editorial Cover"
-    content={
-      data.content_package.visual_mode_1
-    }
-    copyText={copyText}
-  />
-
-  <ContentCard
-    id="visual-quote-card"
-    title="❝ Quote Card"
-    content={
-      data.content_package.visual_mode_2
-    }
-    copyText={copyText}
-  />
-
-  <ContentCard
-    id="visual-infographic-concept"
-    title="📊 Infographic Concept"
-    content={
-      data.content_package.visual_mode_3
-    }
-    copyText={copyText}
-  />
-
-  <ContentCard
-    id="visual-instagram-card"
-    title="📷 Instagram Visual"
-    content={
-      data.content_package.visual_mode_4
-    }
-    copyText={copyText}
-  />
-</div>
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> 
-              <ContentCard
-                
-                id="linkedin-option-1"
-                title="💼 LinkedIn Option 1"
-                content={data.content_package.linkedin_option_1}
-                copyText={copyText}
+              <SocialContentTabs
+  linkedin1={
+    data.content_package.linkedin_option_1
+  }
+  linkedin2={
+    data.content_package.linkedin_option_2
+  }
+  x1={
+    data.content_package.x_option_1
+  }
+  x2={
+    data.content_package.x_option_2
+  }
+  instagram1={
+    data.content_package.instagram_option_1
+  }
+  instagram2={
+    data.content_package.instagram_option_2
+  }
+/>
 
-              />
-
-              <ContentCard
-                id="linkedin-option-2"
-                title="💼 LinkedIn Option 2"
-                content={data.content_package.linkedin_option_2}
-                copyText={copyText}
-
-              />
-
-              <ContentCard
-                id="x-option-1"
-                title="🐦 X Option 1"
-                content={data.content_package.x_option_1}
-                copyText={copyText}
-
-              />
-
-              <ContentCard
-                id="x-option-2"
-                title="🐦 X Option 2"
-                content={data.content_package.x_option_2}
-                copyText={copyText}
-
-              />
-
-              <ContentCard
-                
-                id="instagram-option-1"
-                title="📷 Instagram Option 1"
-                content={data.content_package.instagram_option_1}
-                copyText={copyText}
-              />
-
-              <ContentCard
-                id="instagram-option-2"
-                title="📷 Instagram Option 2"
-                content={data.content_package.instagram_option_2}
-                copyText={copyText}
-
-                           />
-
-            </div>
           </div>
-        )}
+
+        </div>
+      )}
+
       </div>
     </div>
   </main>

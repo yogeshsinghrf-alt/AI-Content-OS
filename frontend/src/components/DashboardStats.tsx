@@ -5,37 +5,79 @@ type DashboardStatsProps = {
 export default function DashboardStats({
   topic,
 }: DashboardStatsProps) {
+  const stats = [
+    {
+      eyebrow: "Selected Topic",
+      value: topic.toUpperCase(),
+      detail: "Live industry intelligence",
+      number: "01",
+    },
+    {
+      eyebrow: "Creative Formats",
+      value: "6",
+      detail: "Posts · Visuals · Carousel · Infographic",
+      number: "02",
+    },
+    {
+      eyebrow: "AI Engine",
+      value: "Gemini",
+      detail: "Research-to-content generation",
+      number: "03",
+    },
+    {
+      eyebrow: "Delivery",
+      value: "Automated",
+      detail: "Scheduled content workflow",
+      number: "04",
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div className="bg-[#FFFDF8] rounded-[28px] border border-[#E7E1D8] p-6 shadow-sm">
-        <p className="text-xs uppercase tracking-[3px] text-[#8B8175]">
-          Selected Topic
-        </p>
+    <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {stats.map((stat) => (
+        <div
+          key={stat.eyebrow}
+          className="group relative overflow-hidden rounded-[26px] border border-[#E3DCD1] bg-[#FFFDF8] p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          {/* Number */}
+          <div className="flex items-start justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-[3px] text-[#8B8175]">
+              {stat.eyebrow}
+            </p>
 
-        <p className="text-5xl font-black text-[#171615] uppercase">
-          {topic}
-        </p>
-      </div>
+            <span
+              className="text-2xl leading-none text-[#D1C5B5]"
+              style={{
+                fontFamily: "Instrument Serif",
+              }}
+            >
+              {stat.number}
+            </span>
+          </div>
 
-      <div className="bg-[#FFFDF8] rounded-[28px] border border-[#E7E1D8] p-6 shadow-sm">
-        <p className="text-xs uppercase tracking-[3px] text-[#8B8175]">
-          Content Outputs
-        </p>
+          {/* Main value */}
+          <p
+            className={`mt-7 leading-none text-[#171615] ${
+              stat.value.length > 10
+                ? "text-3xl"
+                : "text-4xl"
+            }`}
+            style={{
+              fontFamily: "Instrument Serif",
+            }}
+          >
+            {stat.value}
+          </p>
 
-        <p className="text-4xl font-black text-[#171615]">
-          6
-        </p>
-      </div>
+          {/* Description */}
+          <p className="mt-3 min-h-[36px] text-xs leading-5 text-[#81776D]">
+            {stat.detail}
+          </p>
 
-      <div className="bg-[#FFFDF8] rounded-[28px] border border-[#E7E1D8] p-6 shadow-sm">
-        <p className="text-xs uppercase tracking-[3px] text-[#8B8175]">
-          AI Engine
-        </p>
-
-        <p className="text-4xl font-black text-[#171615]">
-          Gemini
-        </p>
-      </div>
-    </div>
+          {/* Accent */}
+          <div className="mt-5 h-[2px] w-10 bg-[#B8A58D] transition-all duration-300 group-hover:w-20" />
+        </div>
+      ))}
+    </section>
   );
 }
