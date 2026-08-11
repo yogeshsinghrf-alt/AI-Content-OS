@@ -1,9 +1,13 @@
 from datetime import datetime
 
 import feedparser
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
-from app.ai.gemini_service import generate_summary
+from app.ai.gemini_service import (
+    AIQuotaError,
+    AIServiceError,
+    generate_summary,
+)
 from app.services.history_service import (
     get_last_used_source,
     get_recent_article_links,
@@ -356,9 +360,37 @@ Use exactly this JSON structure:
 }}
 """
 
-    content_package = generate_summary(
-        prompt
-    )
+    try:
+        content_package = generate_summary(
+            prompt
+        )
+
+    except AIQuotaError:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "AI_QUOTA_UNAVAILABLE",
+                "message": (
+                    "AI content generation is temporarily "
+                    "unavailable because the provider quota "
+                    "has been reached. Please try again later."
+                ),
+                "retryable": True,
+            },
+        )
+
+    except AIServiceError:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "AI_SERVICE_UNAVAILABLE",
+                "message": (
+                    "The AI content service is temporarily "
+                    "unavailable. Please try again later."
+                ),
+                "retryable": True,
+            },
+        )
 
     # -------------------------------------------------
     # 9. Build response

@@ -29,6 +29,8 @@ export default function Home() {
   const [infographicImage, setInfographicImage] = useState("");
   const [quoteImage, setQuoteImage] = useState("");
   const [historySearch, setHistorySearch] = useState("");
+  const [generationError, setGenerationError] =
+    useState<string | null>(null);
   const [historyTopic, setHistoryTopic] = useState("all");
   useEffect(() => {
   fetchHistory();
@@ -67,21 +69,80 @@ async function deleteHistory(filename: string) {
 
   fetchHistory();
 }
+
 async function generateContent() {
+  setGenerationError(null);
+  
   setLoading(true);
 
   try {
     const response = await fetch(
-      `${API}/package/daily?topic=${topic}`
+  `${API}/package/daily?topic=${topic}`
+);
+
+const result = await response.json();
+
+if (!response.ok) {
+  const detail = result?.detail;
+
+  if (
+    detail?.code ===
+    "AI_QUOTA_UNAVAILABLE"
+  ) {
+    setGenerationError(
+      "AI generation is temporarily unavailable because the provider quota has been reached. Your existing content and history are still available."
     );
 
-    if (!response.ok) {
-      throw new Error(
-        `Content generation failed: ${response.status}`
-      );
-    }
+    return;
+  }
 
-    const result = await response.json();
+  if (
+    detail?.code ===
+    "AI_SERVICE_UNAVAILABLE"
+  ) {
+    setGenerationError(
+      "The AI content service is temporarily unavailable. Please try again later."
+    );
+
+    return;
+  }
+
+  setGenerationError(
+    detail?.message ||
+      "Content generation failed. Please try again."
+  );
+
+  return;
+}
+    if (!response.ok) {
+  const detail = result?.detail;
+
+  if (detail?.code === "AI_QUOTA_UNAVAILABLE") {
+    setGenerationError(
+      "AI generation is temporarily unavailable because the provider quota has been reached. Your existing content and history are still available."
+    );
+
+    setLoading(false);
+    return;
+  }
+
+  if (detail?.code === "AI_SERVICE_UNAVAILABLE") {
+    setGenerationError(
+      "The AI content service is temporarily unavailable. Please try again later."
+    );
+
+    setLoading(false);
+    return;
+  }
+
+  setGenerationError(
+    detail?.message ||
+      "Content generation failed. Please try again."
+  );
+
+  setLoading(false);
+  return;
+}
 
     if (
       typeof result.content_package === "string"
@@ -371,6 +432,46 @@ return (
      onCopyAll={copyAllContent}
      onExportPDF={() => window.print()}
    />
+   {generationError && (
+  <div className="mt-5 rounded-[24px] border border-[#E4D6C4] bg-[#FFF9EF] px-6 py-5">
+    <div className="flex items-start gap-4">
+
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F2E6D5] font-bold text-[#8A6749]">
+        !
+      </div>
+
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[3px] text-[#9A7654]">
+          AI Service Notice
+        </p>
+
+        <h3
+          className="mt-1 text-xl text-[#171615]"
+          style={{
+            fontFamily: "Instrument Serif",
+          }}
+        >
+          Content generation temporarily unavailable
+        </h3>
+
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6F675E]">
+          {generationError}
+        </p>
+
+        <button
+          type="button"
+          onClick={() =>
+            setGenerationError(null)
+          }
+          className="mt-3 text-xs font-semibold uppercase tracking-[2px] text-[#171615]"
+        >
+          Dismiss
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
   </div>
   </div>
    <DashboardStats topic={topic} />

@@ -1,7 +1,4 @@
-import base64
 import os
-import random
-from urllib.parse import quote
 
 import requests
 from fastapi import APIRouter, HTTPException
@@ -41,132 +38,232 @@ def generate_image(
 
     platform_instruction = {
         "linkedin": (
-            "Premium LinkedIn business editorial visual. "
-            "Credible, sophisticated and suitable for "
-            "executive thought leadership."
+            "Square executive business editorial photograph "
+            "with a sophisticated professional composition."
         ),
         "instagram": (
-            "Premium Instagram portrait editorial visual. "
-            "Visually expressive and magazine-inspired."
+            "Portrait editorial photograph with strong visual "
+            "storytelling and premium magazine styling."
         ),
         "x": (
-            "Premium wide editorial visual for X. "
-            "Strong focal idea and generous negative space."
+            "Wide editorial photograph with one strong focal "
+            "subject and generous negative space."
         ),
         "carousel": (
-            "Premium square social carousel cover. "
-            "Bold editorial composition and clean hierarchy."
+            "Square editorial photograph with a bold physical "
+            "subject and cinematic composition."
         ),
         "infographic": (
-            "Premium portrait infographic-style visual. "
-            "Structured and professional."
+            "Portrait editorial background photograph with "
+            "structured visual balance and clean negative space."
         ),
         "quote": (
-            "Premium square quote-card background. "
-            "Minimal, elegant and spacious."
+            "Minimal square editorial photograph with elegant "
+            "negative space."
         ),
         "hero": (
-            "Premium business-magazine hero visual. "
-            "Sophisticated European and American editorial style."
+            "Premium business editorial hero photograph with "
+            "a cinematic professional composition."
         ),
     }.get(
         platform,
-        "Premium editorial business visual.",
+        "Premium business editorial photograph.",
     )
 
-    final_prompt = f"""
-{prompt}
+    # ---------------------------------------------
+    # Clean software / UI terminology from subject
+    # ---------------------------------------------
 
+    clean_prompt = prompt
+
+    blocked_phrases = [
+        "saas dashboard",
+        "saas",
+        "ai content engine",
+        "content engine",
+        "user interface",
+        "web page",
+        "dashboard",
+        "interface",
+        "website",
+        "browser",
+        "screen",
+        "headline",
+        "caption",
+        "title",
+        "logo",
+        "software",
+        "app",
+        "cards",
+    ]
+
+    for phrase in blocked_phrases:
+        clean_prompt = clean_prompt.replace(
+            phrase,
+            "",
+        )
+        clean_prompt = clean_prompt.replace(
+            phrase.title(),
+            "",
+        )
+        clean_prompt = clean_prompt.replace(
+            phrase.upper(),
+            "",
+        )
+
+    clean_prompt = " ".join(
+        clean_prompt.split()
+    )
+
+    if len(clean_prompt) < 15:
+        clean_prompt = (
+            "advanced artificial intelligence infrastructure "
+            "and modern enterprise technology"
+        )
+
+    # ---------------------------------------------
+    # Primary image prompt
+    # ---------------------------------------------
+
+    primary_prompt = f"""
 {platform_instruction}
 
-Create a high-end editorial image directly related to the subject.
+Editorial photograph inspired by this subject:
 
-Style requirements:
-- modern European / US business-magazine aesthetic
-- sophisticated editorial photography or illustration
-- professional composition
-- warm light-neutral palette where appropriate
-- realistic materials and lighting
-- strong focal point
-- elegant negative space
-- visually distinctive, not generic stock imagery
-- no written text
-- no logos
-- no watermark
-- no fake interface elements
-- no generic AI brain imagery
-- no humanoid robots unless directly relevant
-- no neon cyberpunk aesthetic
+{clean_prompt}
+
+Create a real-world physical interpretation of the subject.
+
+Use authentic physical environments and objects appropriate
+to the story, such as computing infrastructure, data centers,
+semiconductor hardware, telecommunications equipment,
+industrial engineering, energy infrastructure, architecture,
+research environments or enterprise technology facilities.
+
+High-end international business editorial photography.
+Photorealistic.
+Sophisticated European and American publication aesthetic.
+Natural cinematic lighting.
+Warm neutral color palette.
+Realistic materials.
+Architectural depth.
+Strong photographic focal point.
+Clean composition.
+Generous negative space.
+Subtle depth of field.
+Professional commercial photography.
 """.strip()
 
-    seed = random.randint(
-        1,
-        2_147_483_647,
-    )
+    # ---------------------------------------------
+    # Neutral fallback prompt
+    # ---------------------------------------------
 
-    encoded_prompt = quote(
-        final_prompt,
-        safe="",
-    )
+    fallback_prompt = f"""
+{platform_instruction}
 
-    provider_url = (
-        f"https://gen.pollinations.ai/image/"
-        f"{encoded_prompt}"
-        f"?model=zimage"
-        f"&width={width}"
-        f"&height={height}"
-        f"&seed={seed}"
-        f"&safe=true"
-        f"&key={api_key}"
-    )
+High-end editorial photograph of modern technology
+infrastructure inside a sophisticated architectural environment.
 
-    try:
-        response = requests.get(
-            provider_url,
-            timeout=120,
+Real physical equipment.
+Premium industrial design.
+Warm natural lighting.
+Neutral sophisticated colors.
+Architectural photography.
+Photorealistic materials.
+Cinematic depth.
+Clean uncluttered composition.
+One strong visual subject.
+Generous negative space.
+Professional international business photography.
+""".strip()
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    def request_image(image_prompt: str):
+        payload = {
+            "prompt": image_prompt,
+            "model": "zimage",
+            "n": 1,
+            "size": f"{width}x{height}",
+            "response_format": "b64_json",
+            "safe": True,
+        }
+
+        response = requests.post(
+            "https://gen.pollinations.ai/v1/images/generations",
+            headers=headers,
+            json=payload,
+            timeout=180,
         )
 
         if response.status_code != 200:
-            raise HTTPException(
-                status_code=502,
-                detail=(
-                    "Pollinations image generation failed: "
-                    f"{response.status_code} "
-                    f"{response.text[:500]}"
-                ),
+            return None, (
+                f"{response.status_code} "
+                f"{response.text[:700]}"
             )
 
-        content_type = response.headers.get(
-            "content-type",
-            "image/jpeg",
+        try:
+            result = response.json()
+        except ValueError:
+            return None, "Provider returned invalid JSON."
+
+        data = result.get("data", [])
+
+        if not data:
+            return None, "Provider returned no image data."
+
+        b64_image = data[0].get("b64_json")
+
+        if not b64_image:
+            return None, "Provider returned no base64 image."
+
+        return b64_image, None
+
+    try:
+        # First attempt
+        b64_image, first_error = request_image(
+            primary_prompt
         )
 
-        if not content_type.startswith("image/"):
-            raise HTTPException(
-                status_code=502,
-                detail=(
-                    "Pollinations returned a non-image response."
-                ),
+        used_prompt = primary_prompt
+        fallback_used = False
+
+        # Second attempt if first request failed
+        if not b64_image:
+            b64_image, second_error = request_image(
+                fallback_prompt
             )
 
-        encoded_image = base64.b64encode(
-            response.content
-        ).decode("utf-8")
+            used_prompt = fallback_prompt
+            fallback_used = True
+
+            if not b64_image:
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "Pollinations image generation failed. "
+                        f"First attempt: {first_error}. "
+                        f"Fallback attempt: {second_error}."
+                    ),
+                )
 
         image_url = (
-            f"data:{content_type};base64,"
-            f"{encoded_image}"
+            "data:image/png;base64,"
+            f"{b64_image}"
         )
 
         return {
             "status": "success",
             "image_url": image_url,
-            "prompt": final_prompt,
+            "prompt": used_prompt,
             "platform": platform,
             "width": width,
             "height": height,
-            "seed": seed,
             "model": "pollinations-zimage",
+            "fallback_used": fallback_used,
         }
 
     except HTTPException:
