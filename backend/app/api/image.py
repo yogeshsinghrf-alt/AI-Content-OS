@@ -1,12 +1,10 @@
 import base64
 import os
-from pathlib import Path
+import random
+from urllib.parse import quote
 
+import requests
 from fastapi import APIRouter, HTTPException
-from google import genai
-from google.genai import types
-
-from app.ai.gemini_service import generate_summary
 
 
 router = APIRouter()
@@ -23,36 +21,17 @@ PLATFORM_SIZES = {
 }
 
 
-PLATFORM_ASPECT_RATIOS = {
-    "linkedin": "1:1",
-    "instagram": "4:5",
-    "x": "16:9",
-    "carousel": "1:1",
-    "infographic": "4:5",
-    "quote": "1:1",
-    "hero": "3:2",
-}
-
-
-GENERATED_DIR = (
-    Path(__file__)
-    .resolve()
-    .parents[2]
-    / "generated_images"
-)
-
-
 @router.get("/generate")
 def generate_image(
     prompt: str,
     platform: str = "hero",
 ):
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("POLLINATIONS_API_KEY")
 
     if not api_key:
         raise HTTPException(
             status_code=500,
-            detail="GEMINI_API_KEY is missing.",
+            detail="POLLINATIONS_API_KEY is missing.",
         )
 
     width, height = PLATFORM_SIZES.get(
@@ -60,47 +39,32 @@ def generate_image(
         PLATFORM_SIZES["hero"],
     )
 
-    aspect_ratio = PLATFORM_ASPECT_RATIOS.get(
-        platform,
-        "1:1",
-    )
-
     platform_instruction = {
         "linkedin": (
             "Premium LinkedIn business editorial visual. "
-            "Credible, sophisticated and appropriate for "
+            "Credible, sophisticated and suitable for "
             "executive thought leadership."
         ),
-
         "instagram": (
-            "Premium Instagram editorial visual. "
-            "Portrait-first, visually expressive, modern "
-            "magazine art direction."
+            "Premium Instagram portrait editorial visual. "
+            "Visually expressive and magazine-inspired."
         ),
-
         "x": (
             "Premium wide editorial visual for X. "
-            "One strong focal idea, concise composition "
-            "and generous negative space."
+            "Strong focal idea and generous negative space."
         ),
-
         "carousel": (
-            "Premium social carousel cover. "
-            "Square editorial composition with a strong "
-            "visual concept and clean hierarchy."
+            "Premium square social carousel cover. "
+            "Bold editorial composition and clean hierarchy."
         ),
-
         "infographic": (
-            "Premium infographic-style editorial visual. "
-            "Portrait format, structured composition, "
-            "professional data-inspired visual language."
+            "Premium portrait infographic-style visual. "
+            "Structured and professional."
         ),
-
         "quote": (
-            "Premium quote-card background. "
-            "Square, minimal, elegant and spacious."
+            "Premium square quote-card background. "
+            "Minimal, elegant and spacious."
         ),
-
         "hero": (
             "Premium business-magazine hero visual. "
             "Sophisticated European and American editorial style."
@@ -110,140 +74,87 @@ def generate_image(
         "Premium editorial business visual.",
     )
 
-    enhanced_prompt = f"""
-Create a high-end editorial image.
-
-SUBJECT:
+    final_prompt = f"""
 {prompt}
 
-PLATFORM DIRECTION:
 {platform_instruction}
 
-ART DIRECTION:
+Create a high-end editorial image directly related to the subject.
 
-- directly represent the actual subject
+Style requirements:
 - modern European / US business-magazine aesthetic
 - sophisticated editorial photography or illustration
-- premium composition
-- professional visual storytelling
-- warm light neutral palette where appropriate
-- strong focal point
-- elegant use of negative space
+- professional composition
+- warm light-neutral palette where appropriate
 - realistic materials and lighting
+- strong focal point
+- elegant negative space
 - visually distinctive, not generic stock imagery
+- no written text
+- no logos
+- no watermark
+- no fake interface elements
+- no generic AI brain imagery
+- no humanoid robots unless directly relevant
+- no neon cyberpunk aesthetic
+""".strip()
 
-AVOID:
+    seed = random.randint(
+        1,
+        2_147_483_647,
+    )
 
-- written text
-- logos
-- watermarks
-- fake UI
-- generic AI brains
-- glowing humanoid robots
-- neon cyberpunk aesthetics
-- people staring directly at camera
-- unnecessary futuristic clichés
+    encoded_prompt = quote(
+        final_prompt,
+        safe="",
+    )
 
-The final image should look suitable for a premium
-business publication and professional social-media campaign.
-"""
+    provider_url = (
+        f"https://gen.pollinations.ai/image/"
+        f"{encoded_prompt}"
+        f"?model=zimage"
+        f"&width={width}"
+        f"&height={height}"
+        f"&seed={seed}"
+        f"&safe=true"
+        f"&key={api_key}"
+    )
 
     try:
-        # Optional prompt refinement using the text model
-        final_prompt = generate_summary(
-            f"""
-Rewrite the following as one concise,
-professional image-generation prompt.
-
-Return only the image prompt.
-
-{enhanced_prompt}
-"""
-        ).strip()
-
-        if not final_prompt:
-            final_prompt = enhanced_prompt
-
-        client = genai.Client(
-            api_key=api_key
+        response = requests.get(
+            provider_url,
+            timeout=120,
         )
 
-        response = client.models.generate_content(
-            model="gemini-3.1-flash-image",
-            contents=final_prompt,
-            config=types.GenerateContentConfig(
-                response_modalities=[
-                    "IMAGE",
-                ],
-                image_config=types.ImageConfig(
-                    aspect_ratio=aspect_ratio,
-                ),
-            ),
-        )
-
-        image_bytes = None
-        mime_type = "image/png"
-
-        for candidate in response.candidates or []:
-            if not candidate.content:
-                continue
-
-            for part in candidate.content.parts or []:
-                if part.inline_data:
-                    image_bytes = (
-                        part.inline_data.data
-                    )
-
-                    if part.inline_data.mime_type:
-                        mime_type = (
-                            part.inline_data.mime_type
-                        )
-
-                    break
-
-            if image_bytes:
-                break
-
-        if not image_bytes:
+        if response.status_code != 200:
             raise HTTPException(
-                status_code=500,
+                status_code=502,
                 detail=(
-                    "Gemini returned no image data."
+                    "Pollinations image generation failed: "
+                    f"{response.status_code} "
+                    f"{response.text[:500]}"
                 ),
             )
 
-        GENERATED_DIR.mkdir(
-            parents=True,
-            exist_ok=True,
+        content_type = response.headers.get(
+            "content-type",
+            "image/jpeg",
         )
 
-        extension = (
-            ".jpg"
-            if "jpeg" in mime_type.lower()
-            else ".png"
-        )
-
-        filename = (
-            f"{platform}_"
-            f"{os.urandom(6).hex()}"
-            f"{extension}"
-        )
-
-        file_path = (
-            GENERATED_DIR
-            / filename
-        )
-
-        file_path.write_bytes(
-            image_bytes
-        )
+        if not content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Pollinations returned a non-image response."
+                ),
+            )
 
         encoded_image = base64.b64encode(
-            image_bytes
+            response.content
         ).decode("utf-8")
 
         image_url = (
-            f"data:{mime_type};base64,"
+            f"data:{content_type};base64,"
             f"{encoded_image}"
         )
 
@@ -254,18 +165,18 @@ Return only the image prompt.
             "platform": platform,
             "width": width,
             "height": height,
-            "aspect_ratio": aspect_ratio,
-            "model": "gemini-3.1-flash-image",
+            "seed": seed,
+            "model": "pollinations-zimage",
         }
 
     except HTTPException:
         raise
 
-    except Exception as error:
+    except requests.RequestException as error:
         raise HTTPException(
-            status_code=500,
+            status_code=502,
             detail=(
-                f"Gemini image generation failed: "
+                "Could not reach Pollinations: "
                 f"{str(error)}"
             ),
         )
