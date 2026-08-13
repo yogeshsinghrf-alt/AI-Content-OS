@@ -1,7 +1,17 @@
+import base64
 import os
+from datetime import datetime
+from pathlib import Path
+from app.services.package_service import update_package_asset
 
 import requests
-from fastapi import APIRouter, HTTPException
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    UploadFile,
+    File,
+    Form,
+)
 
 
 router = APIRouter()
@@ -18,10 +28,24 @@ PLATFORM_SIZES = {
 }
 
 
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+
+GENERATED_DIR = (
+    BACKEND_DIR
+    / "generated_images"
+)
+
+GENERATED_DIR.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+
 @router.get("/generate")
 def generate_image(
     prompt: str,
     platform: str = "hero",
+    package_id: str | None = None,
 ):
     api_key = os.getenv("POLLINATIONS_API_KEY")
 
@@ -122,7 +146,7 @@ def generate_image(
         )
 
     # ---------------------------------------------
-    # Primary image prompt
+    # Image prompts
     # ---------------------------------------------
 
     primary_prompt = f"""
@@ -152,11 +176,20 @@ Clean composition.
 Generous negative space.
 Subtle depth of field.
 Professional commercial photography.
-""".strip()
 
-    # ---------------------------------------------
-    # Neutral fallback prompt
-    # ---------------------------------------------
+STRICT REQUIREMENTS:
+No written words.
+No letters.
+No numbers.
+No logos.
+No labels.
+No signage.
+No watermarks.
+No pseudo-language.
+No software interface.
+No dashboard.
+No visible screen content.
+""".strip()
 
     fallback_prompt = f"""
 {platform_instruction}
@@ -175,12 +208,25 @@ Clean uncluttered composition.
 One strong visual subject.
 Generous negative space.
 Professional international business photography.
+
+No written words.
+No letters.
+No numbers.
+No logos.
+No labels.
+No signage.
+No watermarks.
+No visible screen content.
 """.strip()
 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+
+    # ---------------------------------------------
+    # Provider request helper
+    # ---------------------------------------------
 
     def request_image(image_prompt: str):
         payload = {
@@ -210,20 +256,28 @@ Professional international business photography.
         except ValueError:
             return None, "Provider returned invalid JSON."
 
-        data = result.get("data", [])
+        data = result.get(
+            "data",
+            [],
+        )
 
         if not data:
             return None, "Provider returned no image data."
 
-        b64_image = data[0].get("b64_json")
+        b64_image = data[0].get(
+            "b64_json"
+        )
 
         if not b64_image:
             return None, "Provider returned no base64 image."
 
         return b64_image, None
 
+    # ---------------------------------------------
+    # Generate + save image
+    # ---------------------------------------------
+
     try:
-        # First attempt
         b64_image, first_error = request_image(
             primary_prompt
         )
@@ -231,7 +285,6 @@ Professional international business photography.
         used_prompt = primary_prompt
         fallback_used = False
 
-        # Second attempt if first request failed
         if not b64_image:
             b64_image, second_error = request_image(
                 fallback_prompt
@@ -250,6 +303,72 @@ Professional international business photography.
                     ),
                 )
 
+        # Convert provider base64 into real PNG bytes.
+        image_bytes = base64.b64decode(
+            b64_image
+        )
+
+        timestamp = datetime.now().strftime(
+            "%Y%m%d_%H%M%S_%f"
+        )
+
+        safe_platform = (
+            platform
+            if platform in PLATFORM_SIZES
+            else "hero"
+        )
+
+        # Make package ID safe for a Windows directory.
+        safe_package_id = ""
+
+        if package_id:
+            safe_package_id = "".join(
+                char
+                for char in package_id
+                if (
+                    char.isalnum()
+                    or char in ("-", "_")
+                )
+            )
+
+        if safe_package_id:
+            package_dir = (
+                GENERATED_DIR
+                / safe_package_id
+            )
+        else:
+            package_dir = GENERATED_DIR
+
+        package_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        filename = (
+            f"{safe_platform}_{timestamp}.png"
+        )
+
+        file_path = (
+            package_dir
+            / filename
+        )
+
+        file_path.write_bytes(
+            image_bytes
+        )
+        if package_id:
+            update_package_asset(
+               package_id=package_id,
+               platform=safe_platform,
+               asset={
+                   "filename": filename,
+                   "image_path": str(file_path),
+                   "width": width,
+                   "height": height,
+                   "model": "pollinations-zimage",
+           },
+          )
+        # Preserve existing frontend behavior.
         image_url = (
             "data:image/png;base64,"
             f"{b64_image}"
@@ -257,9 +376,12 @@ Professional international business photography.
 
         return {
             "status": "success",
+            "package_id": package_id,
             "image_url": image_url,
+            "image_path": str(file_path),
+            "filename": filename,
             "prompt": used_prompt,
-            "platform": platform,
+            "platform": safe_platform,
             "width": width,
             "height": height,
             "model": "pollinations-zimage",
@@ -274,6 +396,139 @@ Professional international business photography.
             status_code=502,
             detail=(
                 "Could not reach Pollinations: "
+                f"{str(error)}"
+            ),
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Could not save generated image: "
+                f"{str(error)}"
+            ),
+        )
+@router.post("/upload-asset")
+async def upload_asset(
+    package_id: str = Form(...),
+    platform: str = Form(...),
+    file: UploadFile = File(...),
+    slide: int | None = Form(None),
+):
+    """
+    Save a frontend-rendered visual such as
+    an infographic or carousel slide and link
+    it to the correct package history record.
+    """
+
+    allowed_platforms = {
+        "infographic",
+        "carousel",
+        "quote",
+    }
+
+    if platform not in allowed_platforms:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported asset platform.",
+        )
+
+    safe_package_id = "".join(
+        char
+        for char in package_id
+        if char.isalnum()
+        or char in ("-", "_")
+    )
+
+    if not safe_package_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid package_id.",
+        )
+
+    package_dir = (
+        GENERATED_DIR
+        / safe_package_id
+    )
+
+    package_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S_%f"
+    )
+
+    filename = (
+        f"{platform}_{timestamp}.png"
+    )
+
+    file_path = (
+        package_dir
+        / filename
+    )
+
+    try:
+        image_bytes = await file.read()
+
+        if not image_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded image is empty.",
+            )
+
+        file_path.write_bytes(
+            image_bytes
+        )
+
+        linked = update_package_asset(
+            package_id=package_id,
+            platform=platform,
+            asset={
+                "slide": slide,
+                "filename": filename,
+                "image_path": str(file_path),
+                "content_type": (
+                    file.content_type
+                    or "image/png"
+                ),
+            },
+        )
+
+        if not linked:
+            # Do not leave an orphan file behind.
+            try:
+                file_path.unlink(
+                    missing_ok=True
+                )
+            except OSError:
+                pass
+
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Could not find the package "
+                    "history record."
+                ),
+            )
+
+        return {
+            "status": "success",
+            "package_id": package_id,
+            "platform": platform,
+            "filename": filename,
+            "image_path": str(file_path),
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Could not save uploaded asset: "
                 f"{str(error)}"
             ),
         )

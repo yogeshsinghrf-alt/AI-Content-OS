@@ -1,29 +1,122 @@
-import os
 import json
+import os
 from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 HISTORY_DIR = BASE_DIR / "history"
 
+def _extract_articles_from_package(
+    data: dict,
+):
+    """
+    Return every source article stored in a package.
+
+    Supports:
+    - new multi-story packages
+    - older single-story history files
+    """
+
+    articles = []
+
+    stories = data.get(
+        "stories",
+        [],
+    )
+
+    if isinstance(stories, list):
+        for story in stories:
+            if not isinstance(
+                story,
+                dict,
+            ):
+                continue
+
+            title = str(
+                story.get(
+                    "title",
+                    "",
+                )
+            ).strip()
+
+            link = str(
+                story.get(
+                    "link",
+                    "",
+                )
+            ).strip()
+
+            source = str(
+                story.get(
+                    "source",
+                    "",
+                )
+            ).strip()
+
+            if not title and not link:
+                continue
+
+            articles.append(
+                {
+                    "title": title,
+                    "link": link,
+                    "source": source,
+                    "slot": story.get(
+                        "slot"
+                    ),
+                }
+            )
+
+    # Backward compatibility with
+    # existing Phase-1 history files.
+    if not articles:
+        title = str(
+            data.get(
+                "article_title",
+                "",
+            )
+        ).strip()
+
+        link = str(
+            data.get(
+                "article_link",
+                "",
+            )
+        ).strip()
+
+        source = str(
+            data.get(
+                "source",
+                "",
+            )
+        ).strip()
+
+        if title or link:
+            articles.append(
+                {
+                    "title": title,
+                    "link": link,
+                    "source": source,
+                    "slot": None,
+                }
+            )
+
+    return articles
 
 def list_history():
     files = []
 
-    if not os.path.exists(HISTORY_DIR):
+    if not HISTORY_DIR.exists():
         return files
 
-    for file in sorted(
+    for filename in sorted(
         os.listdir(HISTORY_DIR),
         reverse=True,
     ):
-        if not file.endswith(".json"):
+        if not filename.endswith(".json"):
             continue
 
-        file_path = os.path.join(
-            HISTORY_DIR,
-            file,
-        )
+        file_path = HISTORY_DIR / filename
 
         try:
             with open(
@@ -33,28 +126,31 @@ def list_history():
             ) as f:
                 data = json.load(f)
 
-            files.append(
-                {
-                    "filename": file,
-                    "topic": data.get("topic"),
-                    "title": data.get(
-                        "article_title"
-                    ),
-                    "link": data.get(
-                        "article_link"
-                    ),
-                    "source": data.get("source"),
-                }
-            )
-
         except (
             json.JSONDecodeError,
             OSError,
         ) as error:
             print(
-                f"Could not read history "
-                f"{file}: {error}"
+                f"Skipping unreadable history file "
+                f"{filename}: {error}"
             )
+            continue
+
+        files.append(
+            {
+                "filename": filename,
+                "topic": data.get("topic"),
+                "title": data.get(
+                    "article_title"
+                ),
+                "link": data.get(
+                    "article_link"
+                ),
+                "source": data.get(
+                    "source"
+                ),
+            }
+        )
 
     return files
 
@@ -62,12 +158,9 @@ def list_history():
 def get_history_file(
     filename: str,
 ):
-    file_path = os.path.join(
-        HISTORY_DIR,
-        filename,
-    )
+    file_path = HISTORY_DIR / filename
 
-    if not os.path.exists(file_path):
+    if not file_path.exists():
         return None
 
     try:
@@ -81,21 +174,30 @@ def get_history_file(
     except (
         json.JSONDecodeError,
         OSError,
-    ):
+    ) as error:
+        print(
+            f"Skipping unreadable history file "
+            f"{filename}: {error}"
+        )
         return None
 
 
 def delete_history_file(
     filename: str,
 ):
-    file_path = os.path.join(
-        HISTORY_DIR,
-        filename,
-    )
+    file_path = HISTORY_DIR / filename
 
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        return True
+    if file_path.exists():
+        try:
+            file_path.unlink()
+            return True
+
+        except OSError as error:
+            print(
+                f"Could not delete history file "
+                f"{filename}: {error}"
+            )
+            return False
 
     return False
 
@@ -118,22 +220,61 @@ def get_recent_articles(
     limit: int = 30,
 ):
     """
-    Return recently used articles.
+    Return recently used source articles.
 
-    Used by the content pipeline to avoid
-    repeating titles, links and sources.
+    Multi-story packages are flattened so every
+    article participates in duplicate protection.
+    Older single-story packages remain supported.
     """
 
     history = list_history()
 
-    if topic:
-        history = [
-            item
-            for item in history
-            if item.get("topic") == topic
-        ]
+    recent_articles = []
 
-    return history[:limit]
+    for history_item in history:
+        if (
+            topic
+            and history_item.get(
+                "topic"
+            ) != topic
+        ):
+            continue
+
+        filename = history_item.get(
+            "filename"
+        )
+
+        if not filename:
+            continue
+
+        package = get_history_file(
+            filename
+        )
+
+        if not isinstance(
+            package,
+            dict,
+        ):
+            continue
+
+        package_articles = (
+            _extract_articles_from_package(
+                package
+            )
+        )
+
+        for article in package_articles:
+            recent_articles.append(
+                article
+            )
+
+            if (
+                len(recent_articles)
+                >= limit
+            ):
+                return recent_articles
+
+    return recent_articles
 
 
 def get_recent_article_titles(
@@ -182,4 +323,6 @@ def get_last_used_source(
     if not articles:
         return None
 
-    return articles[0].get("source")
+    return articles[0].get(
+        "source"
+    )

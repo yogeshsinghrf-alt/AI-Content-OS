@@ -34,6 +34,7 @@ type VisualStudioProps = {
   quoteImage?: string;
 
   source?: string;
+  packageId?: string;
 };
 
 const PLATFORM_META: Record<
@@ -108,6 +109,7 @@ export default function VisualStudio({
   quoteImage,
 
   source,
+  packageId,
 }: VisualStudioProps) {
   const [activePlatform, setActivePlatform] =
     useState<Platform>("linkedin");
@@ -258,6 +260,7 @@ export default function VisualStudio({
       subtitle={infographicText}
       points={infographicPoints}
       source={source}
+      packageId={packageId}
     />
   ) : activePlatform === "quote" ? (
     <QuoteCard

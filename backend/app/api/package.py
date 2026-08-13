@@ -1,5 +1,5 @@
 from datetime import datetime
-
+import json
 import feedparser
 from fastapi import APIRouter, HTTPException, Query
 
@@ -14,6 +14,10 @@ from app.services.history_service import (
     get_recent_article_titles,
 )
 from app.services.package_service import save_package
+from app.services.article_service import fetch_article_text
+from app.services.source_discovery_service import (
+    discover_topic_articles,
+)
 
 
 router = APIRouter()
@@ -38,8 +42,8 @@ RSS_FEEDS = {
             "https://www.marktechpost.com/feed/",
         ),
         (
-            "Unite AI",
-            "https://www.unite.ai/feed/",
+            "OpenAI",
+            "https://openai.com/news/rss.xml",
         ),
     ],
 
@@ -133,7 +137,20 @@ def daily_package(
                     "published_timestamp": published_timestamp,
                 }
             )
+    # -------------------------------------------------
+    # Add HTML-discovered sources
+    # -------------------------------------------------
 
+    discovered_articles = (
+        discover_topic_articles(
+            topic=topic,
+            limit_per_source=5,
+        )
+    )
+
+    all_articles.extend(
+        discovered_articles
+    )
     if not all_articles:
         return {
             "status": "error",
@@ -223,21 +240,8 @@ def daily_package(
         fresh_articles = unique_articles
         used_history_fallback = True
 
-    # -------------------------------------------------
-    # 5. Avoid using the same source consecutively
-    # -------------------------------------------------
-
-    alternative_source_articles = [
-        article
-        for article in fresh_articles
-        if article["source"] != last_used_source
-    ]
-
-    if alternative_source_articles:
-        fresh_articles = alternative_source_articles
-
-    # -------------------------------------------------
-    # 6. Sort newest articles first
+        # -------------------------------------------------
+    # 5. Build a diverse multi-story selection
     # -------------------------------------------------
 
     fresh_articles.sort(
@@ -248,123 +252,635 @@ def daily_package(
         reverse=True,
     )
 
-    # -------------------------------------------------
-    # 7. Rotate among the freshest five stories
-    # -------------------------------------------------
-
-    recent_candidates = fresh_articles[:5]
-
-    day_number = datetime.now().toordinal()
-
-    article_index = (
-        day_number
-        + sum(ord(char) for char in topic)
-    ) % len(recent_candidates)
-
-    article = recent_candidates[
-        article_index
+    slot_names = [
+        "linkedin_1",
+        "linkedin_2",
+        "instagram_1",
+        "instagram_2",
+        "x_1",
+        "x_2",
+        "infographic",
+        "carousel",
     ]
 
+    selected_articles = []
+    used_sources = set()
+    used_links = set()
+
+    # First pass:
+    # prefer a new source for every slot.
+    for article in fresh_articles:
+        if len(selected_articles) >= len(
+            slot_names
+        ):
+            break
+
+        if article["link"] in used_links:
+            continue
+
+        if article["source"] in used_sources:
+            continue
+
+        selected_articles.append(
+            article
+        )
+
+        used_links.add(
+            article["link"]
+        )
+
+        used_sources.add(
+            article["source"]
+        )
+
+    # Second pass:
+    # if there are not enough publishers,
+    # allow another fresh article from an
+    # already-used source.
+    if len(selected_articles) < len(
+        slot_names
+    ):
+        for article in fresh_articles:
+            if len(selected_articles) >= len(
+                slot_names
+            ):
+                break
+
+            if article["link"] in used_links:
+                continue
+
+            selected_articles.append(
+                article
+            )
+
+            used_links.add(
+                article["link"]
+            )
+
+            used_sources.add(
+                article["source"]
+            )
+
+    if not selected_articles:
+        return {
+            "status": "error",
+            "message": (
+                "No usable fresh stories were found."
+            ),
+        }
+
+    # If fewer than 8 fresh articles exist,
+    # reuse the available article pool only
+    # as a last-resort fallback.
+    article_index = 0
+
+    while len(selected_articles) < len(
+        slot_names
+    ):
+        selected_articles.append(
+            selected_articles[
+                article_index
+                % len(selected_articles)
+            ]
+        )
+
+        article_index += 1
+
+    selected_stories = []
+
+    for slot, article in zip(
+        slot_names,
+        selected_articles,
+    ):
+        selected_stories.append(
+            {
+                "slot": slot,
+                "source": article["source"],
+                "title": article["title"],
+                "link": article["link"],
+            }
+        )
+
     # -------------------------------------------------
-    # 8. Build Gemini content-generation prompt
+    # 8. Fetch and prepare each assigned story
     # -------------------------------------------------
 
-    news_text = f"""
-Source: {article["source"]}
-Title: {article["title"]}
-Link: {article["link"]}
+    grounded_stories = []
+
+    for story in selected_stories:
+        article_text = fetch_article_text(
+            story["link"]
+        )
+
+        grounded_stories.append(
+            {
+                **story,
+                "article_text": (
+                    article_text
+                    if article_text
+                    else (
+                        "[Full article text unavailable. "
+                        "Use only the title and source "
+                        "information for this story.]"
+                    )
+                ),
+            }
+        )
+
+    stories_text = ""
+
+    for story in grounded_stories:
+        stories_text += f"""
+SLOT: {story["slot"]}
+SOURCE: {story["source"]}
+TITLE: {story["title"]}
+LINK: {story["link"]}
+
+ARTICLE CONTENT:
+{story["article_text"]}
+
+----------------------------------------
 """
 
-    prompt = f"""
-You are an AI content strategist.
+    # -------------------------------------------------
+    # 9. Build one multi-story Gemini prompt
+    # -------------------------------------------------
 
-News:
-{news_text}
+    prompt = f"""
+You are an experienced technology and business editor.
+
+You are creating a DAILY MULTI-STORY CONTENT PACKAGE.
+
+Each content slot below has already been assigned a specific
+news story.
+
+CRITICAL RULE:
+
+Each output MUST use ONLY the story assigned to its slot.
+
+Do not combine facts between stories.
+Do not move facts from one slot into another.
+Do not invent facts, statistics, quotations, dates,
+capabilities, outcomes or product claims.
+
+If full article text is unavailable, remain conservative
+and use only the supplied source and title.
+
+ASSIGNED STORIES:
+
+{stories_text}
+
+CONTENT ASSIGNMENTS:
+
+linkedin_option_1 must use SLOT linkedin_1 only.
+linkedin_option_2 must use SLOT linkedin_2 only.
+
+instagram_option_1 must use SLOT instagram_1 only.
+instagram_option_2 must use SLOT instagram_2 only.
+
+x_option_1 must use SLOT x_1 only.
+x_option_2 must use SLOT x_2 only.
+
+infographic must use SLOT infographic only.
+
+carousel must use SLOT carousel only.
+
+The stories should remain editorially independent.
+Before returning the JSON, verify each output independently.
+
+Every headline, insight, post, caption, infographic point,
+carousel slide and visual prompt must contain information
+from its assigned story only.
+
+If the assigned story does not contain enough information
+for a requested detail, omit that detail rather than using
+information from another assigned story.
+WRITING STANDARD:
+
+- Write like a professional technology/business publication.
+- Lead with implications rather than generic announcements.
+- Use restrained, credible language.
+- Avoid hype and generic AI phrases.
+- Preserve uncertainty when a story concerns research.
+- Never imply that two unrelated stories are connected.
+
+LINKEDIN:
+90-130 words each.
+Executive/business intelligence style.
+End with 3 relevant hashtags.
+
+INSTAGRAM:
+Maximum 70 words each.
+Editorial, visual and conversational.
+Maximum 5 hashtags.
+
+X:
+Maximum 240 characters each.
+Sharp news intelligence.
+Maximum 2 hashtags.
+
+INFOGRAPHIC:
+Create one headline, one subtitle and exactly four concise
+points based ONLY on the infographic story.
+
+CAROUSEL:
+Create one headline and exactly six slide objects based ONLY
+on the carousel story.
+
+Each carousel slide requires:
+- label
+- title
+- body
+
+Keep slide body text concise enough for a 1080x1080 design.
+
+VISUAL DIRECTIONS:
+
+Generate a separate physical/editorial image direction for
+LinkedIn 1, Instagram 1 and X 1.
+
+No dashboards.
+No fake interfaces.
+No written text.
+No logos.
+No posters.
+No UI mockups.
 
 Return ONLY valid JSON.
 No markdown.
 No explanation.
 
-The content must be specific to the selected news story.
-
-Do not use generic AI language.
-
-Do not invent statistics, quotations,
-product capabilities, dates, numbers,
-or facts that are not supported by the
-selected story.
-
-Create clearly different writing styles
-for each social platform.
-
 Use exactly this JSON structure:
 
 {{
-  "editorial_headline":
-    "Short premium editorial headline in the style of a business magazine.",
+  "linkedin_option_1": {{
+    "headline": "Concise editorial headline.",
+    "insight": "One short sentence explaining why this specific story matters.",
+    "post": "LinkedIn post.",
+    "visual_prompt": "Premium editorial image direction."
+  }},
 
-  "editorial_subtitle":
-    "One concise sentence supporting the headline.",
+  "linkedin_option_2": {{
+    "headline": "Concise editorial headline.",
+    "insight": "One short sentence explaining why this specific story matters.",
+    "post": "LinkedIn post.",
+    "visual_prompt": "Premium editorial image direction."
+  }},
 
-  "linkedin_option_1":
-    "Professional LinkedIn post under 130 words. Insight-led, credible and business focused. End with 3 relevant hashtags.",
+  "instagram_option_1": {{
+    "headline": "Concise editorial headline.",
+    "insight": "One short sentence supporting this specific Instagram story.",
+    "caption": "Instagram caption.",
+    "visual_prompt": "Portrait editorial image direction."
+  }},
 
-  "linkedin_option_2":
-    "Thought-leadership LinkedIn post under 130 words using a different angle from option 1. End with 3 relevant hashtags.",
+   "instagram_option_2": {{
+    "headline": "Concise editorial headline.",
+    "insight": "One short sentence supporting this specific Instagram story.",
+    "caption": "Instagram caption.",
+    "visual_prompt": "Portrait editorial image direction."
+}},
 
-  "x_option_1":
-    "Concise X post under 260 characters focused on the strongest news insight. Use maximum 2 hashtags.",
+  "x_option_1": {{
+    "headline": "Concise editorial headline.",
+    "insight": "One short sentence explaining the significance of this specific X story.",
+    "post": "X post.",
+    "visual_prompt": "Landscape editorial image direction."
+  }},
 
-  "x_option_2":
-    "Alternative X post under 260 characters with a different angle. Use maximum 2 hashtags.",
+  "x_option_2": {{
+    "headline": "Concise editorial headline.",
+    "insight": "One short sentence explaining the significance of this specific X story.",
+    "post": "X post.",
+    "visual_prompt": "Landscape editorial image direction."
+  }},
 
-  "instagram_option_1":
-    "Instagram caption under 80 words. More visual and conversational than LinkedIn. End with maximum 5 hashtags.",
+  "infographic": {{
+    "headline": "Infographic headline.",
+    "subtitle": "One precise supporting sentence.",
+    "points": [
+      "Point one",
+      "Point two",
+      "Point three",
+      "Point four"
+    ]
+  }},
 
-  "instagram_option_2":
-    "Alternative Instagram caption under 80 words using a different hook. End with maximum 5 hashtags.",
-
-  "quote_card":
-    "One short original insight inspired by the story. Do not falsely attribute it to a famous person.",
-
-  "infographic_points": [
-    "Key development",
-    "Why it matters",
-    "What to watch next",
-    "Business or industry implication"
-  ],
-
-  "hero_image_prompt":
-    "Premium visual direction directly related to this news story. Modern editorial aesthetic, sophisticated light palette, strong visual concept, no written text.",
-
-  "editorial_image_prompt":
-    "Business magazine visual direction directly related to the story. Premium European/US editorial style, elegant composition, no text.",
-
-  "instagram_visual_prompt":
-    "Portrait social visual directly related to the story. Expressive magazine composition, contemporary editorial photography or illustration, no text.",
-
-  "infographic_visual_prompt":
-    "Professional infographic direction directly related to the story using structured visual hierarchy, icons or data-inspired elements, light editorial palette.",
-
-  "visual_mode_1":
-    "Editorial carousel-cover concept based specifically on the selected story.",
-
-  "visual_mode_2":
-    "Minimal quote-card concept based specifically on the selected story.",
-
-  "visual_mode_3":
-    "Professional infographic concept summarizing the selected story.",
-
-  "visual_mode_4":
-    "Premium Instagram visual concept based specifically on the selected story."
+  "carousel": {{
+    "headline": "Carousel headline.",
+    "slides": [
+      {{
+        "label": "01",
+        "title": "Slide title",
+        "body": "Concise slide body."
+      }},
+      {{
+        "label": "02",
+        "title": "Slide title",
+        "body": "Concise slide body."
+      }},
+      {{
+        "label": "03",
+        "title": "Slide title",
+        "body": "Concise slide body."
+      }},
+      {{
+        "label": "04",
+        "title": "Slide title",
+        "body": "Concise slide body."
+      }},
+      {{
+        "label": "05",
+        "title": "Slide title",
+        "body": "Concise slide body."
+      }},
+      {{
+        "label": "06",
+        "title": "Slide title",
+        "body": "Concise slide body."
+      }}
+    ]
+  }}
 }}
 """
-
     try:
         content_package = generate_summary(
             prompt
         )
+        try:
+            content_package = json.loads(
+                content_package
+            )
+        except json.JSONDecodeError as error:
+            raise AIServiceError(
+                f"Gemini returned invalid JSON: {str(error)}"
+            ) from error    
+        # -------------------------------------------------
+        # 10. Flatten multi-story Gemini output so existing
+        # renderers/services continue to work unchanged.
+        # -------------------------------------------------
 
+        linkedin_1 = content_package.get(
+            "linkedin_option_1",
+            {},
+        )
+
+        linkedin_2 = content_package.get(
+            "linkedin_option_2",
+            {},
+        )
+
+        instagram_1 = content_package.get(
+            "instagram_option_1",
+            {},
+        )
+
+        instagram_2 = content_package.get(
+            "instagram_option_2",
+            {},
+        )
+
+        x_1 = content_package.get(
+            "x_option_1",
+            {},
+        )
+
+        x_2 = content_package.get(
+            "x_option_2",
+            {},
+        )
+
+        infographic = content_package.get(
+            "infographic",
+            {},
+        )
+
+        carousel = content_package.get(
+            "carousel",
+            {},
+        )
+
+        content_package = {
+            # Shared editorial fields used by current renderers.
+            "editorial_headline": str(
+                linkedin_1.get(
+                    "headline",
+                    "Industry Intelligence",
+                )
+            ),
+            "editorial_subtitle": str(
+                infographic.get(
+                    "subtitle",
+                    "",
+                )
+            ),
+
+            # Social copy.
+            "linkedin_option_1": str(
+                linkedin_1.get(
+                    "post",
+                    "",
+                )
+            ),
+            "linkedin_option_2": str(
+                linkedin_2.get(
+                    "post",
+                    "",
+                )
+            ),
+
+            "instagram_option_1": str(
+                instagram_1.get(
+                    "caption",
+                    "",
+                )
+            ),
+            "instagram_option_2": str(
+                instagram_2.get(
+                    "caption",
+                    "",
+                )
+            ),
+
+            "x_option_1": str(
+                x_1.get(
+                    "post",
+                    "",
+                )
+            ),
+            "x_option_2": str(
+                x_2.get(
+                    "post",
+                    "",
+                )
+            ),
+
+            # Current visual generators.
+            "editorial_image_prompt": str(
+                linkedin_1.get(
+                    "visual_prompt",
+                    "",
+                )
+            ),
+            "instagram_visual_prompt": str(
+                instagram_1.get(
+                    "visual_prompt",
+                    "",
+                )
+            ),
+            "hero_image_prompt": str(
+                x_1.get(
+                    "visual_prompt",
+                    "",
+                )
+            ),
+
+            # Infographic.
+            "infographic_headline": str(
+                infographic.get(
+                    "headline",
+                    "",
+                )
+            ),
+            "infographic_points": (
+                infographic.get(
+                    "points",
+                    [],
+                )
+            ),
+
+            # Carousel-specific content.
+            "carousel_headline": str(
+                carousel.get(
+                    "headline",
+                    "",
+                )
+            ),
+            "carousel_slides": (
+                carousel.get(
+                    "slides",
+                    [],
+                )
+            ),
+
+            # Keep slot-specific headlines available
+            # for later renderer improvements.
+            "linkedin_1_headline": str(
+                linkedin_1.get(
+                    "headline",
+                    "",
+                )
+            ),
+            "linkedin_1_insight": str(
+                linkedin_1.get(
+                    "insight",
+                  "",
+    )
+            ),
+            "linkedin_2_headline": str(
+                linkedin_2.get(
+                    "headline",
+                    "",
+                )
+            ),
+            "linkedin_2_insight": str(
+    linkedin_2.get(
+        "insight",
+        "",
+    )
+),
+
+"linkedin_2_visual_prompt": str(
+    linkedin_2.get(
+        "visual_prompt",
+        "",
+    )
+),
+            "instagram_1_headline": str(
+                instagram_1.get(
+                    "headline",
+                    "",
+                )
+            ),
+            "instagram_1_insight": str(
+                instagram_1.get(
+                    "insight",
+                    "",
+                )
+            ),
+            "instagram_2_headline": str(
+                instagram_2.get(
+                    "headline",
+                    "",
+                )
+            ),
+            "instagram_2_insight": str(
+    instagram_2.get(
+        "insight",
+        "",
+    )
+),
+
+"instagram_2_visual_prompt": str(
+    instagram_2.get(
+        "visual_prompt",
+        "",
+    )
+),
+            "x_1_headline": str(
+                x_1.get(
+                    "headline",
+                    "",
+                )
+            ),
+            "x_1_insight": str(
+                x_1.get(
+                    "insight",
+                    "",
+                )
+            ),
+            "x_2_headline": str(
+                x_2.get(
+                    "headline",
+                    "",
+                )
+            ),
+        "x_2_insight": str(
+    x_2.get(
+        "insight",
+        "",
+    )
+),
+
+"x_2_visual_prompt": str(
+    x_2.get(
+        "visual_prompt",
+        "",
+    )
+),
+"linkedin_1_visual_prompt": str(
+    linkedin_1.get(
+        "visual_prompt",
+        "",
+    )
+),
+
+"instagram_1_visual_prompt": str(
+    instagram_1.get(
+        "visual_prompt",
+        "",
+    )
+),
+
+"x_1_visual_prompt": str(
+    x_1.get(
+        "visual_prompt",
+        "",
+    )
+),        
+}
+
+        
     except AIQuotaError:
         raise HTTPException(
             status_code=503,
@@ -395,18 +911,25 @@ Use exactly this JSON structure:
     # -------------------------------------------------
     # 9. Build response
     # -------------------------------------------------
-
+    package_id = datetime.now().strftime(
+        "%Y%m%d_%H%M%S_%f"
+    )
     response = {
         "status": "success",
+        "package_id": package_id,
         "topic": topic,
-        "source": article["source"],
-        "article_title": article["title"],
-        "article_link": article["link"],
+        "source": selected_stories[0]["source"],
+        "article_title": selected_stories[0]["title"],
+        "article_link": selected_stories[0]["link"],
+        "stories": selected_stories,
 
-        "available_sources": [
-            source_name
-            for source_name, _ in feeds
-        ],
+        "available_sources": sorted(
+    {
+        article["source"]
+        for article in all_articles
+        if article.get("source")
+    }
+),
 
         "selection_info": {
             "last_used_source": last_used_source,
@@ -442,6 +965,7 @@ Use exactly this JSON structure:
 
         "content_package":
             content_package,
+        "assets": {},
     }
 
     # -------------------------------------------------

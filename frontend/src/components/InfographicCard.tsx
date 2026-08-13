@@ -9,6 +9,7 @@ type InfographicCardProps = {
   subtitle?: string;
   points?: string[];
   source?: string;
+  packageId?: string;
 };
 
 function shortenText(text: string, limit: number) {
@@ -24,6 +25,7 @@ export default function InfographicCard({
   subtitle = "",
   points = [],
   source = "AI Content OS",
+  packageId,
 }: InfographicCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
 
@@ -59,7 +61,58 @@ export default function InfographicCard({
     backgroundColor: "#F7F1E7",
   });
 }
+  async function saveToPackage() {
+  if (!packageId) {
+    throw new Error(
+      "Package ID is missing."
+    );
+  }
 
+  const dataUrl = await createPng();
+
+  const blobResponse = await fetch(
+    dataUrl
+  );
+
+  const blob = await blobResponse.blob();
+
+  const formData = new FormData();
+
+  formData.append(
+    "package_id",
+    packageId
+  );
+
+  formData.append(
+    "platform",
+    "infographic"
+  );
+
+  formData.append(
+    "file",
+    blob,
+    "infographic.png"
+  );
+
+  const response = await fetch(
+    "http://127.0.0.1:8000/image/upload-asset",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const message =
+      await response.text();
+
+    throw new Error(
+      `Infographic save failed: ${response.status} ${message}`
+    );
+  }
+
+  return await response.json();
+}
   async function downloadPng() {
   try {
     const dataUrl = await createPng();
@@ -287,6 +340,36 @@ export default function InfographicCard({
   >
     Download PDF
   </button>
+  <button
+  onClick={async () => {
+    try {
+      const saved =
+        await saveToPackage();
+
+      console.log(
+        "Infographic saved:",
+        saved
+      );
+
+      alert(
+        "Infographic saved to package."
+      );
+    } catch (error) {
+      console.error(
+        "Infographic save failed:",
+        error
+      );
+
+      alert(
+        "Could not save infographic."
+      );
+    }
+  }}
+  disabled={!packageId}
+  className="rounded-2xl border border-[#171615] bg-white px-5 py-3 font-semibold text-[#171615] transition hover:bg-[#F2EEE6] disabled:cursor-not-allowed disabled:opacity-40"
+>
+  Save to Package
+</button>
 </div>
 
 {/* Close component wrapper */}

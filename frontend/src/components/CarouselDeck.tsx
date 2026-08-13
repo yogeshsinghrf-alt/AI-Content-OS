@@ -10,6 +10,7 @@ type CarouselDeckProps = {
   points?: string[];
   source?: string;
   imageUrl?: string;
+  packageId?: string;
 };
 
 function shortenText(text: string, limit: number) {
@@ -26,6 +27,7 @@ export default function CarouselDeck({
   points = [],
   source = "AI Content OS",
   imageUrl,
+  packageId,
 }: CarouselDeckProps) {
   const slideRefs =
     useRef<(HTMLDivElement | null)[]>([]);
@@ -181,7 +183,77 @@ export default function CarouselDeck({
       );
     }
   }
+  async function saveCarouselToPackage() {
+  if (!packageId) {
+    throw new Error(
+      "Package ID is missing."
+    );
+  }
 
+  const savedSlides = [];
+
+  for (
+    let index = 0;
+    index < slides.length;
+    index++
+  ) {
+    const dataUrl =
+      await createSlidePng(index);
+
+    const blobResponse =
+      await fetch(dataUrl);
+
+    const blob =
+      await blobResponse.blob();
+
+    const formData =
+      new FormData();
+
+    formData.append(
+      "package_id",
+      packageId
+    );
+
+    formData.append(
+      "platform",
+      "carousel"
+    );
+
+    formData.append(
+      "file",
+      blob,
+      `carousel-slide-${index + 1}.png`
+    );
+
+    formData.append(
+      "slide",
+      String(index + 1)
+    );
+
+    const response = await fetch(
+      "http://127.0.0.1:8000/image/upload-asset",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const message =
+        await response.text();
+
+      throw new Error(
+        `Carousel slide ${index + 1} save failed: ${response.status} ${message}`
+      );
+    }
+
+    savedSlides.push(
+      await response.json()
+    );
+  }
+
+  return savedSlides;
+}
   return (
     <section className="rounded-[32px] border border-[#E2DBD0] bg-[#FFFDF9] p-7 shadow-sm lg:p-9">
 
@@ -216,6 +288,36 @@ export default function CarouselDeck({
         >
           Download Full Carousel PDF
         </button>
+        <button
+  onClick={async () => {
+    try {
+      const saved =
+        await saveCarouselToPackage();
+
+      console.log(
+        "Carousel saved:",
+        saved
+      );
+
+      alert(
+        "Carousel saved to package."
+      );
+    } catch (error) {
+      console.error(
+        "Carousel save failed:",
+        error
+      );
+
+      alert(
+        "Could not save carousel."
+      );
+    }
+  }}
+  disabled={!packageId}
+  className="w-fit rounded-2xl border border-[#171615] bg-white px-5 py-3 text-sm font-semibold text-[#171615] hover:bg-[#F3EEE5] disabled:cursor-not-allowed disabled:opacity-40"
+>
+  Save to Package
+</button>
       </div>
 
       {/* SLIDES */}

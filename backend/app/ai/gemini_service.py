@@ -34,24 +34,34 @@ client = genai.Client(
 def generate_summary(prompt):
     try:
         response = client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model="gemini-3.6-flash",
             contents=prompt,
         )
 
         time.sleep(2)
 
-        if not response.text:
-            raise AIServiceError(
-                "Gemini returned an empty response."
-            )
-
         return response.text
 
-    except AIServiceError:
-        raise
 
     except Exception as error:
-        error_text = str(error).lower()
+        print(
+            "\n========== GEMINI ERROR =========="
+        )
+        print(
+            "Error type:",
+            type(error).__name__,
+        )
+        print(
+            "Error:",
+            str(error),
+        )
+        print(
+            "==================================\n"
+        )
+
+        error_text = str(
+            error
+        ).lower()
 
         quota_indicators = [
             "resource_exhausted",
@@ -68,8 +78,18 @@ def generate_summary(prompt):
             indicator in error_text
             for indicator in quota_indicators
         ):
+            print(
+                "\n========== GEMINI QUOTA ERROR =========="
+            )
+            print(
+                str(error)
+            )
+            print(
+                "========================================\n"
+            )
+
             raise AIQuotaError(
-                "AI generation quota is temporarily unavailable."
+                f"Gemini quota error: {str(error)}"
             ) from error
 
         raise AIServiceError(

@@ -37,9 +37,30 @@ export default function Home() {
 }, []);
   
 async function fetchHistory() {
-  const response = await fetch(`${API}/history/`);
-  const result = await response.json();
-  setHistory(result);
+  try {
+    const response = await fetch(
+      `${API}/history/`
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `History request failed: ${response.status}`
+      );
+    }
+
+    const result =
+      await response.json();
+
+    setHistory(result);
+
+  } catch (error) {
+    console.error(
+      "Could not load history:",
+      error
+    );
+
+    setHistory([]);
+  }
 }
   async function loadHistory(filename: string) {
   const response = await fetch(
@@ -159,6 +180,10 @@ if (!response.ok) {
     }
 
     setData(result);
+    console.log(
+      "Generated package ID:",
+      result.package_id
+    );
 
     // Reset previous visuals
 setHeroImage("");
@@ -203,6 +228,13 @@ try {
     prompt,
     platform,
   });
+
+  if (result.package_id) {
+    params.set(
+      "package_id",
+      result.package_id
+    );
+  }
 
   const url =
     `${API}/image/generate?${params.toString()}`;
@@ -695,6 +727,7 @@ quoteImage={
   undefined
 }
   source={data.source}
+  packageId={data.package_id}
 />
 <CarouselDeck
   headline={
@@ -719,6 +752,7 @@ quoteImage={
     heroImage ||
     undefined
   }
+  packageId={data.package_id}
 />
 
 <div className="mt-10 mb-8">
