@@ -386,14 +386,13 @@ export default function CarouselDeck({
                         />
                       )}
 
-                      <div
-                        className={`absolute inset-0 ${
-                          imageUrl
-                            ? "bg-gradient-to-t from-black/85 via-black/30 to-black/15"
-                            : "bg-gradient-to-br from-[#17211C] via-[#344139] to-[#9C876D]"
-                        }`}
-                      />
-
+<div
+  className={`absolute inset-0 carousel-cover-bg ${
+    imageUrl
+      ? "bg-gradient-to-t from-black/85 via-black/30 to-black/15"
+      : "bg-gradient-to-br from-[#17211C] via-[#344139] to-[#9C876D]"
+  }`}
+/>
                       <div className="relative flex h-full flex-col justify-between p-10 text-white">
                         <TopBar
                           number="01"
@@ -450,7 +449,7 @@ export default function CarouselDeck({
                           : index === 4
                           ? "bg-[#E8DED1]"
                           : index === 5
-                          ? "bg-[#18201C] text-white"
+                          ? "carousel-dark-slide bg-[#18201C] text-white"
                           : "bg-[#F7F1E7]"
                       }`}
                     >

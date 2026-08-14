@@ -32,3 +32,17 @@ body {
     print-color-adjust: exact !important;
   }
 }
+@media print {
+  .carousel-cover-bg {
+    background: #17211c !important;
+  }
+
+  .carousel-dark-slide {
+    background: #18201c !important;
+    color: #ffffff !important;
+  }
+
+  .carousel-dark-slide * {
+    color: inherit;
+  }
+}
