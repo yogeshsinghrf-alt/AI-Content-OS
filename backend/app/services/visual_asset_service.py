@@ -875,13 +875,10 @@ def create_social_image_asset(
     option: int = 1,
 ):
     """
-    Generate a social image through Pollinations
-    directly from the backend.
+    Generate a social image through Pollinations.
 
-    Supported:
-    linkedin
-    instagram
-    x
+    If the first generation appears to be a safety-filter
+    placeholder, retry once with a neutral editorial prompt.
     """
 
     platform_sizes = {
@@ -894,10 +891,12 @@ def create_social_image_asset(
         raise ValueError(
             f"Unsupported social platform: {platform}"
         )
+
     if option not in (1, 2):
         raise ValueError(
             f"Unsupported social option: {option}"
         )
+
     package_id = package.get(
         "package_id"
     )
@@ -929,10 +928,6 @@ def create_social_image_asset(
     width, height = platform_sizes[
         platform
     ]
-
-    # ---------------------------------------------
-    # Pick the correct visual prompt
-    # ---------------------------------------------
 
     prompt_keys = {
         ("linkedin", 1): "linkedin_1_visual_prompt",
@@ -970,13 +965,9 @@ def create_social_image_asset(
 
     if not prompt:
         prompt = (
-            "Modern enterprise artificial intelligence "
-            "and technology infrastructure."
+            "Modern enterprise technology "
+            "infrastructure in a professional setting."
         )
-
-    # ---------------------------------------------
-    # Remove UI/software wording
-    # ---------------------------------------------
 
     blocked_phrases = [
         "saas dashboard",
@@ -1021,10 +1012,6 @@ def create_social_image_asset(
         clean_prompt.split()
     )
 
-    # ---------------------------------------------
-    # Platform-specific visual direction
-    # ---------------------------------------------
-
     instructions = {
         "linkedin": (
             "Square executive business editorial "
@@ -1045,31 +1032,73 @@ def create_social_image_asset(
     final_prompt = f"""
 {instructions[platform]}
 
-Editorial photograph inspired by this subject:
+Create a neutral editorial photograph inspired by this subject:
 
 {clean_prompt}
 
-Create a real-world physical interpretation of the story.
+Represent the subject through ordinary real-world environments,
+architecture, infrastructure, equipment or abstract physical
+technology details.
 
-Use authentic environments, infrastructure and physical
-objects appropriate to the subject.
+Do not depict dangerous activity, weapons, injury, explicit
+content, political persuasion or identifiable private people.
 
 High-end international business editorial photography.
 Photorealistic.
-Sophisticated European and American publication aesthetic.
 Natural cinematic lighting.
 Warm neutral palette.
 Realistic materials.
 Architectural depth.
-Clean composition.
-Professional commercial photography.
+Clean professional composition.
 
 No text.
+No letters.
+No numbers.
+No signs.
 No captions.
 No logos.
+No brands.
 No watermark.
 No user interface.
 No dashboard.
+No computer screen content.
+""".strip()
+
+    fallback_prompt = f"""
+{instructions[platform]}
+
+Create a neutral premium business editorial photograph.
+
+Show a modern professional technology environment using
+architecture, server infrastructure, fiber infrastructure,
+laboratory equipment or abstract physical technology details.
+
+No people are required.
+No brands.
+No company identities.
+No controversial subject matter.
+No dangerous activity.
+No weapons.
+No injury.
+No politics.
+
+Photorealistic international business publication photography.
+Natural cinematic lighting.
+Warm neutral colors.
+Realistic physical materials.
+Clean sophisticated composition.
+Generous negative space.
+
+No text.
+No letters.
+No numbers.
+No signs.
+No captions.
+No logos.
+No watermark.
+No interface.
+No dashboard.
+No screen content.
 """.strip()
 
     headers = {
@@ -1079,68 +1108,137 @@ No dashboard.
         "Content-Type": "application/json",
     }
 
-    payload = {
-        "prompt": final_prompt,
-        "model": "zimage",
-        "n": 1,
-        "size": f"{width}x{height}",
-        "response_format": "b64_json",
-        "safe": True,
-    }
+    def request_image(
+        image_prompt: str,
+    ) -> bytes:
+        payload = {
+            "prompt": image_prompt,
+            "model": "zimage",
+            "n": 1,
+            "size": f"{width}x{height}",
+            "response_format": "b64_json",
+            "safe": True,
+        }
 
-    response = requests.post(
-        "https://gen.pollinations.ai/v1/images/generations",
-        headers=headers,
-        json=payload,
-        timeout=180,
+        response = requests.post(
+            "https://gen.pollinations.ai/v1/images/generations",
+            headers=headers,
+            json=payload,
+            timeout=180,
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                "Pollinations image generation failed "
+                f"for {platform}: "
+                f"{response.status_code} "
+                f"{response.text[:500]}"
+            )
+
+        try:
+            result = response.json()
+
+        except ValueError as error:
+            raise RuntimeError(
+                "Pollinations returned invalid JSON."
+            ) from error
+
+        data = result.get(
+            "data",
+            [],
+        )
+
+        if not data:
+            raise RuntimeError(
+                f"Pollinations returned no image "
+                f"for {platform}."
+            )
+
+        b64_image = data[0].get(
+            "b64_json"
+        )
+
+        if not b64_image:
+            raise RuntimeError(
+                f"Pollinations returned no base64 "
+                f"image for {platform}."
+            )
+
+        try:
+            return base64.b64decode(
+                b64_image
+            )
+
+        except Exception as error:
+            raise RuntimeError(
+                f"Could not decode {platform} image."
+            ) from error
+
+    def image_looks_blocked(
+        image_bytes: bytes,
+    ) -> bool:
+        """
+        Detect the common Pollinations safety-placeholder
+        layout without OCR.
+
+        This is intentionally conservative. It detects
+        unusually flat placeholder-style images rather
+        than attempting to read rendered text.
+        """
+
+        try:
+            from io import BytesIO
+
+            test_image = Image.open(
+                BytesIO(image_bytes)
+            ).convert("RGB")
+
+            test_image.thumbnail(
+                (160, 160)
+            )
+
+            colors = test_image.getcolors(
+                maxcolors=160 * 160
+            )
+
+            if colors is None:
+                return False
+
+            unique_colors = len(colors)
+
+            # Normal photographs usually contain many
+            # thousands of colors. Filter/error cards are
+            # commonly much flatter.
+            return unique_colors < 120
+
+        except Exception:
+            return False
+
+    image_bytes = request_image(
+        final_prompt
     )
 
-    if response.status_code != 200:
-        raise RuntimeError(
-            "Pollinations image generation failed "
-            f"for {platform}: "
-            f"{response.status_code} "
-            f"{response.text[:500]}"
+    if image_looks_blocked(
+        image_bytes
+    ):
+        print(
+            f"Possible safety placeholder detected for "
+            f"{platform} option {option}. Retrying "
+            f"with neutral fallback prompt."
         )
 
-    try:
-        result = response.json()
-
-    except ValueError as error:
-        raise RuntimeError(
-            "Pollinations returned invalid JSON."
-        ) from error
-
-    data = result.get(
-        "data",
-        [],
-    )
-
-    if not data:
-        raise RuntimeError(
-            f"Pollinations returned no image "
-            f"for {platform}."
+        image_bytes = request_image(
+            fallback_prompt
         )
 
-    b64_image = data[0].get(
-        "b64_json"
-    )
-
-    if not b64_image:
-        raise RuntimeError(
-            f"Pollinations returned no base64 "
-            f"image for {platform}."
-        )
-
-    try:
-        image_bytes = base64.b64decode(
-            b64_image
-        )
-
-    except Exception as error:
-        raise RuntimeError(
-            f"Could not decode {platform} image."
-        ) from error
+        if image_looks_blocked(
+            image_bytes
+        ):
+            raise RuntimeError(
+                "Pollinations returned a probable "
+                "safety-filter placeholder after retry "
+                f"for {platform} option {option}."
+            )
 
     safe_package_id = "".join(
         char
