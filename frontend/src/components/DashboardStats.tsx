@@ -13,8 +13,8 @@ export default function DashboardStats({
       number: "01",
     },
     {
-      eyebrow: "Creative Formats",
-      value: "6",
+      eyebrow: "Story Outputs",
+      value: "8",
       detail: "Posts · Visuals · Carousel · Infographic",
       number: "02",
     },

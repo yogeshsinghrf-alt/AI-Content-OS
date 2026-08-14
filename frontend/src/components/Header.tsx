@@ -48,7 +48,7 @@ export default function Header() {
 
           {[
             "AI · Telecom · Marketing",
-            "6 Creative Formats",
+            "8 Story Outputs",
             "AI Visual Generation",
             "Anti-Repeat Selection",
             "PNG + PDF Export",

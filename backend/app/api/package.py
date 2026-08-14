@@ -78,7 +78,94 @@ RSS_FEEDS = {
     ],
 }
 
+def is_usable_article(
+    article: dict,
+) -> bool:
+    """
+    Reject navigation pages, category pages and other
+    weak candidates before story selection.
+    """
 
+    title = str(
+        article.get("title", "")
+    ).strip()
+
+    link = str(
+        article.get("link", "")
+    ).strip()
+
+    if not title or not link:
+        return False
+
+    normalized_title = " ".join(
+        title.lower().split()
+    )
+
+    # Exact titles that normally represent navigation,
+    # category or landing pages rather than news stories.
+    blocked_titles = {
+        "artificial intelligence",
+        "ai",
+        "news",
+        "blog",
+        "blogs",
+        "latest",
+        "latest news",
+        "research",
+        "insights",
+        "articles",
+        "stories",
+        "home",
+        "homepage",
+        "skip to main content",
+        "skip to content",
+        "technology",
+    }
+
+    if normalized_title in blocked_titles:
+        return False
+
+    # Navigation/accessibility fragments accidentally
+    # extracted as article titles.
+    blocked_title_fragments = (
+        "skip to main",
+        "skip to content",
+        "cookie policy",
+        "privacy policy",
+        "terms of use",
+        "sign in",
+        "log in",
+        "subscribe",
+    )
+
+    if any(
+        fragment in normalized_title
+        for fragment in blocked_title_fragments
+    ):
+        return False
+
+    # Very short titles are usually poor candidates.
+    if len(normalized_title) < 12:
+        return False
+
+    normalized_link = (
+        link.lower()
+        .split("#", 1)[0]
+        .rstrip("/")
+    )
+
+    # Known category/landing pages that should never
+    # become assigned stories.
+    blocked_urls = {
+        "https://deepmind.google/blog",
+        "https://www.weforum.org/stories/artificial-intelligence",
+        "https://www.weforum.org/agenda/archive/artificial-intelligence",
+    }
+
+    if normalized_link in blocked_urls:
+        return False
+
+    return True
 @router.get("/daily")
 def daily_package(
     topic: str = Query(default="ai"),
@@ -151,6 +238,13 @@ def daily_package(
     all_articles.extend(
         discovered_articles
     )
+
+    all_articles = [
+        article
+        for article in all_articles
+        if is_usable_article(article)
+    ]
+
     if not all_articles:
         return {
             "status": "error",
