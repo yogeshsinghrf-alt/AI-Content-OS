@@ -3,42 +3,49 @@
 import { useState } from "react";
 import VisualPostCard from "./VisualPostCard";
 import InfographicCard from "./InfographicCard";
-import QuoteCard from "./QuoteCard";
 
-type Platform =
+type SocialPlatform =
   | "linkedin"
   | "instagram"
-  | "x"
-  | "carousel"
+  | "x";
+
+type StudioPlatform =
+  | SocialPlatform
   | "infographic"
-  | "quote";
+  | "carousel";
+
+type SocialCreative = {
+  headline: string;
+  content: string;
+  image?: string;
+  source: string;
+};
 
 type VisualStudioProps = {
-  headline?: string;
+  linkedin1: SocialCreative;
+  linkedin2: SocialCreative;
+  instagram1: SocialCreative;
+  instagram2: SocialCreative;
+  x1: SocialCreative;
+  x2: SocialCreative;
 
-  linkedinText?: string;
-  instagramText?: string;
-  xText?: string;
+  infographic: {
+    headline: string;
+    subtitle: string;
+    points: string[];
+    source: string;
+  };
 
-  carouselText?: string;
-  infographicText?: string;
-  infographicPoints?: string[];
-  quoteText?: string;
+  carousel: {
+    headline: string;
+    source: string;
+  };
 
-  linkedinImage?: string;
-  instagramImage?: string;
-  xImage?: string;
-
-  carouselImage?: string;
-  infographicImage?: string;
-  quoteImage?: string;
-
-  source?: string;
   packageId?: string;
 };
 
 const PLATFORM_META: Record<
-  Platform,
+  StudioPlatform,
   {
     label: string;
     eyebrow: string;
@@ -49,131 +56,83 @@ const PLATFORM_META: Record<
     label: "LinkedIn",
     eyebrow: "Executive Editorial",
     description:
-      "Professional square creative for business and thought-leadership publishing.",
+      "Two independently sourced business creatives for professional publishing.",
   },
-
   instagram: {
     label: "Instagram",
     eyebrow: "Visual Magazine",
     description:
-      "Portrait-first editorial creative with stronger imagery and shorter display copy.",
+      "Two independently sourced portrait-first editorial creatives.",
   },
-
   x: {
     label: "X",
     eyebrow: "News Brief",
     description:
-      "Wide, fast-scanning visual designed around one strong insight.",
+      "Two independently sourced wide creatives designed for fast scanning.",
   },
-
-  carousel: {
-    label: "Carousel",
-    eyebrow: "Swipe Story",
-    description:
-      "Editorial cover concept for a multi-slide educational or insight carousel.",
-  },
-
   infographic: {
     label: "Infographic",
     eyebrow: "Data Story",
     description:
-      "Structured visual summary for key takeaways, numbers and business implications.",
+      "A dedicated story rendered as a structured four-point visual summary.",
   },
-
-  quote: {
-    label: "Quote",
-    eyebrow: "Insight Card",
+  carousel: {
+    label: "Carousel",
+    eyebrow: "Swipe Story",
     description:
-      "Minimal shareable visual focused on one memorable statement.",
+      "A dedicated story transformed into a six-slide editorial narrative.",
   },
 };
 
 export default function VisualStudio({
-  headline = "AI Intelligence Brief",
-
-  linkedinText = "",
-  instagramText = "",
-  xText = "",
-
-  carouselText = "",
-  infographicText = "",
-  infographicPoints = [],
-  quoteText = "",
-
-  linkedinImage,
-  instagramImage,
-  xImage,
-
-  carouselImage,
-  infographicImage,
-  quoteImage,
-
-  source,
+  linkedin1,
+  linkedin2,
+  instagram1,
+  instagram2,
+  x1,
+  x2,
+  infographic,
+  carousel,
   packageId,
 }: VisualStudioProps) {
   const [activePlatform, setActivePlatform] =
-    useState<Platform>("linkedin");
+    useState<StudioPlatform>("linkedin");
 
-  const platformData: Record<
-    Platform,
-    {
-      content: string;
-      image?: string;
-    }
-  > = {
+  const [activeOption, setActiveOption] =
+    useState<1 | 2>(1);
+
+  const socialMap = {
     linkedin: {
-      content: linkedinText,
-      image: linkedinImage,
+      1: linkedin1,
+      2: linkedin2,
     },
-
     instagram: {
-      content: instagramText,
-      image: instagramImage,
+      1: instagram1,
+      2: instagram2,
     },
-
     x: {
-      content: xText,
-      image: xImage,
-    },
-
-    carousel: {
-      content:
-        carouselText ||
-        "Swipe through the key ideas, implications and practical takeaways.",
-      image:
-        carouselImage ||
-        linkedinImage,
-    },
-
-    infographic: {
-      content:
-        infographicText ||
-        "Key statistics, insights and implications presented in a visual format.",
-      image:
-        infographicImage ||
-        instagramImage,
-    },
-
-    quote: {
-      content:
-        quoteText ||
-        "A strong idea designed for professional social sharing.",
-      image:
-        quoteImage ||
-        xImage,
+      1: x1,
+      2: x2,
     },
   };
 
-  const active = platformData[activePlatform];
-  const meta = PLATFORM_META[activePlatform];
+  const isSocial =
+    activePlatform === "linkedin" ||
+    activePlatform === "instagram" ||
+    activePlatform === "x";
+
+  const activeSocial = isSocial
+    ? socialMap[activePlatform][activeOption]
+    : null;
+
+  const meta =
+    PLATFORM_META[activePlatform];
 
   return (
     <section className="mt-12 overflow-hidden rounded-[40px] border border-[#E5DED2] bg-[#F7F3EB] shadow-[0_18px_60px_rgba(70,60,45,0.08)]">
 
-      {/* Header */}
       <div className="border-b border-[#E4DDD2] px-8 py-9 lg:px-10">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-
           <div>
             <p className="text-xs font-semibold uppercase tracking-[4px] text-[#8A7E70]">
               Creative Studio
@@ -182,26 +141,24 @@ export default function VisualStudio({
             <h2
               className="mt-3 text-4xl leading-none text-[#171615] md:text-5xl"
               style={{
-                fontFamily: "Instrument Serif",
+                fontFamily:
+                  "Instrument Serif",
               }}
             >
-              Publication-ready social assets
+              Multi-story editorial assets
             </h2>
 
             <p className="mt-4 max-w-3xl text-base leading-7 text-[#6E655C]">
-              One story, translated into platform-specific
-              creative formats for LinkedIn, Instagram, X,
-              carousels, infographics and quote cards.
+              Six social creatives plus a dedicated infographic and carousel, each grounded in its assigned news story.
             </p>
           </div>
 
           <div className="rounded-full border border-[#DDD5C9] bg-[#FFFDF9] px-5 py-3 text-sm text-[#6C635A]">
-            6 creative formats
+            8 story outputs
           </div>
         </div>
       </div>
 
-      {/* Platform navigation */}
       <div className="px-8 pt-7 lg:px-10">
         <div className="flex flex-wrap gap-2">
           {(
@@ -209,19 +166,31 @@ export default function VisualStudio({
               "linkedin",
               "instagram",
               "x",
-              "carousel",
               "infographic",
-              "quote",
-            ] as Platform[]
+              "carousel",
+            ] as StudioPlatform[]
           ).map((platform) => {
-            const item = PLATFORM_META[platform];
+            const item =
+              PLATFORM_META[platform];
 
             return (
               <button
                 key={platform}
-                onClick={() =>
-                  setActivePlatform(platform)
-                }
+                onClick={() => {
+                  setActivePlatform(
+                    platform
+                  );
+
+                  if (
+                    platform ===
+                      "linkedin" ||
+                    platform ===
+                      "instagram" ||
+                    platform === "x"
+                  ) {
+                    setActiveOption(1);
+                  }
+                }}
                 className={`rounded-full border px-5 py-3 text-sm font-semibold transition ${
                   activePlatform === platform
                     ? "border-[#171615] bg-[#171615] text-white shadow-sm"
@@ -233,9 +202,30 @@ export default function VisualStudio({
             );
           })}
         </div>
+
+        {isSocial && (
+          <div className="mt-4 flex gap-2">
+            {[1, 2].map((option) => (
+              <button
+                key={option}
+                onClick={() =>
+                  setActiveOption(
+                    option as 1 | 2
+                  )
+                }
+                className={`rounded-full px-4 py-2 text-xs font-semibold ${
+                  activeOption === option
+                    ? "bg-[#9A8167] text-white"
+                    : "border border-[#D8CFC2] bg-white text-[#6E655C]"
+                }`}
+              >
+                Option {option}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Active design info */}
       <div className="px-8 pb-4 pt-8 lg:px-10">
         <div className="flex flex-col gap-3 border-l-2 border-[#B6A58F] pl-5">
           <p className="text-xs font-bold uppercase tracking-[3px] text-[#927F68]">
@@ -243,7 +233,10 @@ export default function VisualStudio({
           </p>
 
           <h3 className="text-2xl font-bold text-[#191817]">
-            {meta.label} Creative
+            {meta.label}
+            {isSocial
+              ? ` Creative ${activeOption}`
+              : ""}
           </h3>
 
           <p className="max-w-3xl text-sm leading-6 text-[#756C63]">
@@ -252,31 +245,66 @@ export default function VisualStudio({
         </div>
       </div>
 
-      {/* Design preview */}
-<div className="px-8 pb-10 pt-4 lg:px-10">
-  {activePlatform === "infographic" ? (
-    <InfographicCard
-      headline={headline}
-      subtitle={infographicText}
-      points={infographicPoints}
-      source={source}
-      packageId={packageId}
-    />
-  ) : activePlatform === "quote" ? (
-    <QuoteCard
-      quote={quoteText}
-      source={source}
-    />
-  ) : (
-    <VisualPostCard
-      platform={activePlatform}
-      headline={headline}
-      content={active.content}
-      imageUrl={active.image}
-      source={source}
-    />
-  )}
-</div>
-</section>
-);
+      <div className="px-8 pb-10 pt-4 lg:px-10">
+        {activePlatform ===
+        "infographic" ? (
+          <InfographicCard
+            headline={
+              infographic.headline
+            }
+            subtitle={
+              infographic.subtitle
+            }
+            points={
+              infographic.points
+            }
+            source={
+              infographic.source
+            }
+            packageId={packageId}
+          />
+        ) : activePlatform ===
+          "carousel" ? (
+          <div className="rounded-[28px] border border-[#DDD4C8] bg-[#FFFDF9] p-8">
+            <p className="text-xs font-bold uppercase tracking-[3px] text-[#927F68]">
+              Dedicated Carousel Story
+            </p>
+            <h3
+              className="mt-3 text-4xl text-[#171615]"
+              style={{
+                fontFamily:
+                  "Instrument Serif",
+              }}
+            >
+              {carousel.headline}
+            </h3>
+            <p className="mt-4 text-sm text-[#756C63]">
+              Source: {carousel.source}
+            </p>
+            <p className="mt-5 text-sm leading-6 text-[#5F574F]">
+              View the full six-slide carousel below.
+            </p>
+          </div>
+        ) : activeSocial ? (
+          <VisualPostCard
+            platform={
+              activePlatform as SocialPlatform
+            }
+            headline={
+              activeSocial.headline
+            }
+            content={
+              activeSocial.content
+            }
+            imageUrl={
+              activeSocial.image
+            }
+            source={
+              activeSocial.source
+            }
+          />
+        ) : null}
+      </div>
+    </section>
+  );
 }
