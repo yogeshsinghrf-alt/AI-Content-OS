@@ -130,7 +130,66 @@ def _normalize_path(path: str) -> str:
 def _normalize_title(title: str) -> str:
     return " ".join(str(title).split()).strip()
 
+def _clean_article_title(
+    title: str,
+) -> str:
+    """
+    Remove common card/navigation metadata from
+    discovered article titles while preserving the
+    actual editorial headline.
+    """
 
+    cleaned = _normalize_title(
+        title
+    )
+
+    if not cleaned:
+        return ""
+
+    # Common CTA prefixes embedded in article cards.
+    cta_prefixes = (
+        "read more about ",
+        "read more: ",
+        "read more ",
+        "learn more about ",
+    )
+
+    lowered = cleaned.lower()
+
+    for prefix in cta_prefixes:
+        if lowered.startswith(prefix):
+            cleaned = cleaned[
+                len(prefix):
+            ].strip()
+            break
+
+    # Remove leading date + content-category metadata.
+    #
+    # Example:
+    # Aug 7, 2026 Product Improving Fable 5's biology safeguards
+    #
+    # becomes:
+    # Improving Fable 5's biology safeguards
+    date_category_pattern = re.compile(
+        r"^(?:"
+        r"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
+        r")\s+\d{1,2},\s+\d{4}\s+"
+        r"(?:"
+        r"Product|Research|Company|Policy|News|"
+        r"Engineering|Safety|Announcements?"
+        r")\s+",
+        flags=re.IGNORECASE,
+    )
+
+    cleaned = date_category_pattern.sub(
+        "",
+        cleaned,
+        count=1,
+    )
+
+    return _normalize_title(
+        cleaned
+    )
 def _is_useful_title(title: str) -> bool:
     normalized = _normalize_title(title)
 
@@ -315,8 +374,10 @@ def _discover_source_articles(
             ):
                 continue
 
-            title = _extract_anchor_title(
-                anchor
+            title = _clean_article_title(
+                _extract_anchor_title(
+                    anchor
+                )
             )
 
             if not title:
