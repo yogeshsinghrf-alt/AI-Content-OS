@@ -419,7 +419,7 @@ export default function CarouselDeck({
                             )}
                           </h3>
 
-                          <p className="mt-6 max-w-[90%] text-[13px] leading-5 text-white/80">
+                          <p className="mt-6 max-w-[90%] text-[13px] leading-5 text-white/90">
                             {shortenText(
                               slide.body ||
                                 subtitle,
@@ -540,7 +540,7 @@ function TopBar({
       <p
         className={`text-[9px] font-bold uppercase tracking-[4px] ${
           dark
-            ? "text-white/55"
+            ? "text-white/75"
             : "text-[#766B60]"
         }`}
       >
@@ -550,7 +550,7 @@ function TopBar({
       <span
         className={`rounded-full border px-4 py-2 text-[9px] font-bold ${
           dark
-            ? "border-white/20 text-white/60"
+            ? "border-white/30 text-white/80"
             : "border-[#D3C8B8] text-[#766B60]"
         }`}
       >
@@ -571,7 +571,7 @@ function SlideFooter({
     <div
       className={`flex shrink-0 items-center justify-between border-t pt-5 text-[9px] ${
         dark
-          ? "border-white/20 text-white/55"
+          ? "border-white/30 text-white/75"
           : "border-[#D1C7B8] text-[#81766A]"
       }`}
     >
