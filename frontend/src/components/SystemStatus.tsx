@@ -82,7 +82,7 @@ export default function SystemStatus() {
     status?.jobs?.[0]?.next_run_time;
 
   return (
-    <section className="mt-8 rounded-[28px] border border-[#E4DDD2] bg-[#FFFDF9] p-6 shadow-sm">
+    <section className="mt-8 mb-10 rounded-[28px] border border-[#E4DDD2] bg-[#FFFDF9] p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[4px] text-[#927F68]">
