@@ -1,5 +1,8 @@
 import base64
 import os
+from io import BytesIO
+
+from PIL import Image, ImageStat
 from datetime import datetime
 from pathlib import Path
 from app.services.package_service import update_package_asset
@@ -272,6 +275,79 @@ No visible screen content.
             return None, "Provider returned no base64 image."
 
         return b64_image, None
+    def image_looks_blocked(
+        b64_image: str,
+    ) -> bool:
+        """
+        Detect likely provider error/safety placeholder
+        images without OCR.
+        """
+
+        try:
+            image_bytes = base64.b64decode(
+                b64_image
+            )
+
+            image = Image.open(
+                BytesIO(image_bytes)
+            ).convert("RGB")
+
+            image.thumbnail(
+                (180, 180)
+            )
+
+            colors = image.getcolors(
+                maxcolors=180 * 180
+            )
+
+            # Very flat images are suspicious.
+            if colors is not None:
+                if len(colors) < 120:
+                    return True
+
+            width, height = image.size
+
+            # Inspect the center, where provider
+            # error cards commonly appear.
+            center = image.crop(
+                (
+                    int(width * 0.20),
+                    int(height * 0.30),
+                    int(width * 0.80),
+                    int(height * 0.70),
+                )
+            )
+
+            full_stats = ImageStat.Stat(
+                image
+            )
+
+            center_stats = ImageStat.Stat(
+                center
+            )
+
+            full_brightness = sum(
+                full_stats.mean
+            ) / 3
+
+            center_brightness = sum(
+                center_stats.mean
+            ) / 3
+
+            # Provider placeholders commonly contain
+            # a large bright/neutral information card
+            # over a substantially darker background.
+            if (
+                center_brightness
+                - full_brightness
+                > 32
+            ):
+                return True
+
+            return False
+
+        except Exception:
+            return False        
 
     # ---------------------------------------------
     # Generate + save image
@@ -285,7 +361,20 @@ No visible screen content.
         used_prompt = primary_prompt
         fallback_used = False
 
-        if not b64_image:
+        should_retry = (
+            not b64_image
+            or image_looks_blocked(
+                b64_image
+            )
+        )
+
+        if should_retry:
+            if b64_image:
+                first_error = (
+                    "Provider returned a probable "
+                    "blocked/error placeholder image."
+                )
+
             b64_image, second_error = request_image(
                 fallback_prompt
             )
@@ -293,7 +382,18 @@ No visible screen content.
             used_prompt = fallback_prompt
             fallback_used = True
 
-            if not b64_image:
+            if (
+                not b64_image
+                or image_looks_blocked(
+                    b64_image
+                )
+            ):
+                if b64_image:
+                    second_error = (
+                        "Provider returned a probable "
+                        "blocked/error placeholder image."
+                    )
+
                 raise HTTPException(
                     status_code=502,
                     detail=(
