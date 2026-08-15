@@ -5,6 +5,7 @@ type ToolbarProps = {
   onGenerate: () => void;
   onCopyAll: () => void;
   onExportPDF: () => void;
+  onExportPNG: () => void;
 };
 
 export default function Toolbar({
@@ -14,6 +15,7 @@ export default function Toolbar({
   onGenerate,
   onCopyAll,
   onExportPDF,
+  onExportPNG,
 }: ToolbarProps) {
   return (
     <div className="mb-8">
@@ -33,9 +35,8 @@ export default function Toolbar({
         </button>
 
         <button
-          disabled
-          title="PNG export will be added later"
-          className="bg-[#FFFDF8] border border-[#E7E1D8] px-5 py-3 rounded-2xl shadow-sm opacity-50 cursor-not-allowed"
+          onClick={onExportPNG}
+          className="bg-[#FFFDF8] border border-[#E7E1D8] px-5 py-3 rounded-2xl shadow-sm"
         >
           🖼 Export PNG
         </button>
@@ -44,7 +45,9 @@ export default function Toolbar({
       <div className="flex items-center gap-4 flex-wrap">
         <select
           value={topic}
-          onChange={(event) => onTopicChange(event.target.value)}
+          onChange={(event) =>
+            onTopicChange(event.target.value)
+          }
           className="bg-[#FFFDF8] border border-[#E7E1D8] rounded-2xl px-5 py-3 shadow-sm"
         >
           <option value="ai">AI</option>

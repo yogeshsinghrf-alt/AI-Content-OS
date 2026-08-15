@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import { toPng } from "html-to-image";
 import Sidebar from "../components/Sidebar";
 import HistoryPanel from "../components/HistoryPanel";
 import DashboardStats from "../components/DashboardStats";
@@ -23,6 +29,8 @@ type Story = {
 };
 
 export default function Home() {
+  const packageRef =
+    useRef<HTMLDivElement | null>(null);  
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [topic, setTopic] = useState("ai");
@@ -328,7 +336,52 @@ export default function Home() {
 
     alert("All content copied.");
   }
+  async function exportPackagePng() {
+    if (!packageRef.current) {
+      alert(
+        "Generate a content package before exporting PNG."
+      );
+      return;
+    }
 
+    try {
+      const dataUrl = await toPng(
+        packageRef.current,
+        {
+          cacheBust: true,
+          pixelRatio: 1.5,
+          backgroundColor: "#F5F2EA",
+        }
+      );
+
+      const link =
+        document.createElement("a");
+
+      link.download =
+        `AI-Content-OS-${topic}-package.png`;
+
+      link.href = dataUrl;
+
+      document.body.appendChild(
+        link
+      );
+
+      link.click();
+
+      document.body.removeChild(
+        link
+      );
+    } catch (error) {
+      console.error(
+        "Package PNG export failed:",
+        error
+      );
+
+      alert(
+        "Could not export the content package as PNG."
+      );
+    }
+  }
   const filteredHistory = history.filter((item) => {
     const matchesTopic =
       historyTopic === "all" ||
@@ -483,8 +536,12 @@ export default function Home() {
               onCopyAll={copyAllContent}
               onExportPDF={() =>
                 window.print()
-              }
-            />
+             }
+             onExportPNG={
+               exportPackagePng
+
+            }
+          />
 
             {generationError && (
               <div className="mt-5 rounded-[24px] border border-[#E4D6C4] bg-[#FFF9EF] px-6 py-5">
@@ -507,7 +564,9 @@ export default function Home() {
           />
 
           {data && (
-            <div id="content-package">
+            <div id="content-package"
+                 ref={packageRef}
+            >
               <SourcePanel
                 sources={
                   data.available_sources || []
