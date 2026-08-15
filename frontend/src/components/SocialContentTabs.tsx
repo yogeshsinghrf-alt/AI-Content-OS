@@ -324,86 +324,95 @@ function PostOption({
     );
 
 
-  async function downloadPng() {
-    if (
-      !exportRef.current
-    ) {
-      return;
-    }
-
-
-    try {
-      const dataUrl =
-        await toPng(
-          exportRef.current,
-          {
-            cacheBust:
-              true,
-
-            pixelRatio:
-              2,
-
-            backgroundColor:
-              "#FFFFFF",
-          }
-        );
-
-
-      const link =
-        document.createElement(
-          "a"
-        );
-
-
-      const safeSource =
-        (
-          story.source ||
-          "story"
-        )
-          .toLowerCase()
-          .replace(
-            /[^a-z0-9]+/g,
-            "-"
-          )
-          .replace(
-            /^-|-$/g,
-            ""
-          );
-
-
-      link.download =
-        `AI-Content-OS-${platform}-${number}-${safeSource}.png`;
-
-
-      link.href =
-        dataUrl;
-
-
-      document.body.appendChild(
-        link
-      );
-
-
-      link.click();
-
-
-      document.body.removeChild(
-        link
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Social post PNG export failed:",
-        error
-      );
-
-
-      alert(
-        "Could not export this story as PNG."
-      );
-    }
+async function downloadPng() {
+  if (!exportRef.current) {
+    return;
   }
+
+  const exportElement =
+    exportRef.current;
+
+  const excludedElements =
+    exportElement.querySelectorAll<HTMLElement>(
+      '[data-png-exclude="true"]'
+    );
+
+  try {
+    // Hide elements that should not appear
+    // in the downloaded PNG.
+    excludedElements.forEach(
+      (element) => {
+        element.style.display =
+          "none";
+      }
+    );
+
+    const dataUrl =
+      await toPng(
+        exportElement,
+        {
+          cacheBust: true,
+          pixelRatio: 2,
+          backgroundColor:
+            "#FFFFFF",
+        }
+      );
+
+    const link =
+      document.createElement(
+        "a"
+      );
+
+    const safeSource =
+      (
+        story.source ||
+        "story"
+      )
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9]+/g,
+          "-"
+        )
+        .replace(
+          /^-|-$/g,
+          ""
+        );
+
+    link.download =
+      `AI-Content-OS-${platform}-${number}-${safeSource}.png`;
+
+    link.href =
+      dataUrl;
+
+    document.body.appendChild(
+      link
+    );
+
+    link.click();
+
+    document.body.removeChild(
+      link
+    );
+  } catch (error) {
+    console.error(
+      "Social post PNG export failed:",
+      error
+    );
+
+    alert(
+      "Could not export this story as PNG."
+    );
+  } finally {
+    // Restore Read source on the website
+    // immediately after export.
+    excludedElements.forEach(
+      (element) => {
+        element.style.display =
+          "";
+      }
+    );
+  }
+}
 
 
   return (
@@ -461,18 +470,22 @@ function PostOption({
           ONLY THIS RECTANGLE IS EXPORTED
       ================================== */}
 
-      <div
-        ref={exportRef}
-        className={`flex flex-col overflow-hidden rounded-[24px] border border-[#E5DED3] bg-white p-7 ${
-        platform === "linkedin"
-          ? "aspect-square"
-          : "min-h-[420px]"
-      }`}
-      style={{
-      borderRadius: "24px",
+  <div className="overflow-hidden rounded-[24px] border border-[#E5DED3] bg-white">
+
+  <div
+    ref={exportRef}
+    className={`flex flex-col border border-[#E5DED3] bg-white p-7 ${
+      platform === "linkedin"
+        ? "aspect-square"
+        : platform === "instagram"
+        ? "min-h-[520px]"
+        : "min-h-[420px]"
+    }`}
+    style={{
+      borderRadius: "0px",
       backgroundColor: "#FFFFFF",
       color: "#514A43",
-      }}
+    }}
   >
 
         {/* Story identity panel */}
@@ -500,6 +513,7 @@ function PostOption({
               }
               target="_blank"
               rel="noreferrer"
+              data-png-exclude="true"
               className="mt-2 inline-block text-xs font-semibold text-[#78644E] underline"
             >
               Read source
@@ -511,15 +525,18 @@ function PostOption({
 
         {/* Generated social story */}
 
-        <div className="mt-6 flex-1 whitespace-pre-wrap text-sm leading-7 text-[#514A43]">
-          {
-            content ||
-            "No content generated."
-          }
-        </div>
+    <div className="mt-6 flex-1 whitespace-pre-wrap text-sm leading-7 text-[#514A43]">
+      {
+        content ||
+        "No content generated."
+     }
+    </div>
+
+    {/* Bottom editorial divider */}
+    <div className="mt-8 border-t border-[#DDD5C9]" />
 
       </div>
-
+    </div>
       {/* ==================================
           PNG EXPORT BOUNDARY ENDS HERE
       ================================== */}
