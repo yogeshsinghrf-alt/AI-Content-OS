@@ -3,6 +3,9 @@
 import { useRef } from "react";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
+const API =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
 
 type InfographicCardProps = {
   headline: string;
@@ -94,8 +97,8 @@ export default function InfographicCard({
     "infographic.png"
   );
 
-  const response = await fetch(
-    "http://127.0.0.1:8000/image/upload-asset",
+   const response = await fetch(
+    `${API}/image/upload-asset`,
     {
       method: "POST",
       body: formData,
