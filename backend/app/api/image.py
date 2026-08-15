@@ -1,20 +1,21 @@
 import base64
 import os
-from io import BytesIO
-
-from PIL import Image, ImageStat
+import random
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
-from app.services.package_service import update_package_asset
 
 import requests
 from fastapi import (
     APIRouter,
-    HTTPException,
-    UploadFile,
     File,
     Form,
+    HTTPException,
+    UploadFile,
 )
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
+
+from app.services.package_service import update_package_asset
 
 
 router = APIRouter()
@@ -31,6 +32,8 @@ PLATFORM_SIZES = {
 }
 
 
+CLOUDFLARE_MODEL = "@cf/black-forest-labs/flux-1-schnell"
+
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 GENERATED_DIR = (
@@ -44,25 +47,67 @@ GENERATED_DIR.mkdir(
 )
 
 
-@router.get("/generate")
-def generate_image(
+def _clean_prompt_text(
     prompt: str,
-    platform: str = "hero",
-    package_id: str | None = None,
-):
-    api_key = os.getenv("POLLINATIONS_API_KEY")
-
-    if not api_key:
-        raise HTTPException(
-            status_code=500,
-            detail="POLLINATIONS_API_KEY is missing.",
-        )
-
-    width, height = PLATFORM_SIZES.get(
-        platform,
-        PLATFORM_SIZES["hero"],
+) -> str:
+    clean_prompt = str(
+        prompt or ""
     )
 
+    blocked_phrases = [
+        "saas dashboard",
+        "saas",
+        "ai content engine",
+        "content engine",
+        "user interface",
+        "web page",
+        "dashboard",
+        "interface",
+        "website",
+        "browser",
+        "screen",
+        "headline",
+        "caption",
+        "title",
+        "logo",
+        "software",
+        "app",
+        "cards",
+    ]
+
+    for phrase in blocked_phrases:
+        clean_prompt = clean_prompt.replace(
+            phrase,
+            "",
+        )
+
+        clean_prompt = clean_prompt.replace(
+            phrase.title(),
+            "",
+        )
+
+        clean_prompt = clean_prompt.replace(
+            phrase.upper(),
+            "",
+        )
+
+    clean_prompt = " ".join(
+        clean_prompt.split()
+    )
+
+    if len(clean_prompt) < 15:
+        clean_prompt = (
+            "advanced artificial intelligence infrastructure "
+            "and modern enterprise technology"
+        )
+
+    return clean_prompt
+
+
+def _build_primary_prompt(
+    prompt: str,
+    platform: str,
+) -> str:
     platform_instruction = {
         "linkedin": (
             "Square executive business editorial photograph "
@@ -97,417 +142,714 @@ def generate_image(
         "Premium business editorial photograph.",
     )
 
-    # ---------------------------------------------
-    # Clean software / UI terminology from subject
-    # ---------------------------------------------
-
-    clean_prompt = prompt
-
-    blocked_phrases = [
-        "saas dashboard",
-        "saas",
-        "ai content engine",
-        "content engine",
-        "user interface",
-        "web page",
-        "dashboard",
-        "interface",
-        "website",
-        "browser",
-        "screen",
-        "headline",
-        "caption",
-        "title",
-        "logo",
-        "software",
-        "app",
-        "cards",
-    ]
-
-    for phrase in blocked_phrases:
-        clean_prompt = clean_prompt.replace(
-            phrase,
-            "",
-        )
-        clean_prompt = clean_prompt.replace(
-            phrase.title(),
-            "",
-        )
-        clean_prompt = clean_prompt.replace(
-            phrase.upper(),
-            "",
-        )
-
-    clean_prompt = " ".join(
-        clean_prompt.split()
+    clean_prompt = _clean_prompt_text(
+        prompt
     )
 
-    if len(clean_prompt) < 15:
-        clean_prompt = (
-            "advanced artificial intelligence infrastructure "
-            "and modern enterprise technology"
-        )
-
-    # ---------------------------------------------
-    # Image prompts
-    # ---------------------------------------------
-
-    primary_prompt = f"""
+    return f"""
 {platform_instruction}
 
-Editorial photograph inspired by this subject:
+Create a photorealistic editorial image inspired by:
 
 {clean_prompt}
 
-Create a real-world physical interpretation of the subject.
+Interpret the story through real physical objects,
+architecture, infrastructure, research environments,
+telecommunications equipment, semiconductor hardware,
+data centers, energy systems or modern enterprise
+technology facilities.
 
-Use authentic physical environments and objects appropriate
-to the story, such as computing infrastructure, data centers,
-semiconductor hardware, telecommunications equipment,
-industrial engineering, energy infrastructure, architecture,
-research environments or enterprise technology facilities.
+The entire image must look like professional photography.
 
-High-end international business editorial photography.
-Photorealistic.
-Sophisticated European and American publication aesthetic.
 Natural cinematic lighting.
-Warm neutral color palette.
+Premium business-magazine aesthetic.
 Realistic materials.
+Strong physical focal point.
 Architectural depth.
-Strong photographic focal point.
 Clean composition.
 Generous negative space.
-Subtle depth of field.
-Professional commercial photography.
-
-STRICT REQUIREMENTS:
-No written words.
+No visible text.
 No letters.
 No numbers.
 No logos.
-No labels.
 No signage.
 No watermarks.
-No pseudo-language.
 No software interface.
 No dashboard.
-No visible screen content.
+No dialog box.
+No popup.
+No warning screen.
+No error message.
+No buttons.
+No UI cards.
+No visible monitor content.
 """.strip()
 
-    fallback_prompt = f"""
-{platform_instruction}
 
-High-end editorial photograph of modern technology
-infrastructure inside a sophisticated architectural environment.
+def _normalize_provider_image(
+    image_bytes: bytes,
+    width: int,
+    height: int,
+) -> bytes:
+    """
+    Validate the provider image, center-crop it to the
+    requested platform aspect ratio, resize it, and always
+    return a PNG.
+    """
 
-Real physical equipment.
-Premium industrial design.
-Warm natural lighting.
-Neutral sophisticated colors.
-Architectural photography.
-Photorealistic materials.
-Cinematic depth.
-Clean uncluttered composition.
-One strong visual subject.
-Generous negative space.
-Professional international business photography.
+    image = Image.open(
+        BytesIO(image_bytes)
+    ).convert("RGB")
 
-No written words.
-No letters.
-No numbers.
-No logos.
-No labels.
-No signage.
-No watermarks.
-No visible screen content.
-""".strip()
+    image = ImageOps.fit(
+        image,
+        (width, height),
+        method=Image.Resampling.LANCZOS,
+        centering=(0.5, 0.5),
+    )
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
+    buffer = BytesIO()
 
-    # ---------------------------------------------
-    # Provider request helper
-    # ---------------------------------------------
+    image.save(
+        buffer,
+        format="PNG",
+        optimize=True,
+    )
 
-    def request_image(image_prompt: str):
-        payload = {
-            "prompt": image_prompt,
-            "model": "zimage",
-            "n": 1,
-            "size": f"{width}x{height}",
-            "response_format": "b64_json",
-            "safe": True,
+    return buffer.getvalue()
+
+
+def _create_local_safe_fallback(
+    width: int,
+    height: int,
+    platform: str,
+) -> bytes:
+    """
+    Guaranteed local fallback generated entirely by Pillow.
+    It has no external provider dependency and cannot contain
+    moderation screens or provider-generated text.
+    """
+
+    width = max(
+        int(width),
+        320,
+    )
+
+    height = max(
+        int(height),
+        320,
+    )
+
+    image = Image.new(
+        "RGB",
+        (width, height),
+        (24, 30, 27),
+    )
+
+    draw = ImageDraw.Draw(
+        image,
+        "RGBA",
+    )
+
+    for step in range(18):
+        inset = int(
+            min(width, height)
+            * 0.018
+            * step
+        )
+
+        alpha = max(
+            6,
+            42 - step * 2,
+        )
+
+        draw.rounded_rectangle(
+            (
+                inset,
+                inset,
+                width - inset,
+                height - inset,
+            ),
+            radius=max(
+                12,
+                int(
+                    min(width, height)
+                    * 0.045
+                ),
+            ),
+            fill=(
+                52 + step,
+                61 + step,
+                55 + step,
+                alpha,
+            ),
+        )
+
+    horizon_y = int(
+        height * 0.62
+    )
+
+    draw.polygon(
+        [
+            (0, horizon_y),
+            (width, horizon_y),
+            (width, height),
+            (0, height),
+        ],
+        fill=(47, 43, 38, 255),
+    )
+
+    draw.polygon(
+        [
+            (0, height),
+            (
+                int(width * 0.42),
+                horizon_y,
+            ),
+            (
+                int(width * 0.58),
+                horizon_y,
+            ),
+            (width, height),
+        ],
+        fill=(66, 61, 54, 170),
+    )
+
+    rack_count = (
+        5
+        if platform in {
+            "linkedin",
+            "instagram",
+            "carousel",
+            "quote",
         }
+        else 7
+    )
 
-        response = requests.post(
-            "https://gen.pollinations.ai/v1/images/generations",
-            headers=headers,
-            json=payload,
-            timeout=180,
+    gap = width / (
+        rack_count + 2
+    )
+
+    rack_width = int(
+        gap * 0.58
+    )
+
+    rack_top = int(
+        height * 0.20
+    )
+
+    rack_bottom = int(
+        height * 0.70
+    )
+
+    for index in range(
+        rack_count
+    ):
+        x = int(
+            gap * (
+                index + 1
+            )
         )
 
-        if response.status_code != 200:
-            return None, (
-                f"{response.status_code} "
-                f"{response.text[:700]}"
+        perspective_shift = int(
+            (
+                index
+                - (
+                    rack_count - 1
+                )
+                / 2
             )
-
-        try:
-            result = response.json()
-        except ValueError:
-            return None, "Provider returned invalid JSON."
-
-        data = result.get(
-            "data",
-            [],
+            * gap
+            * 0.05
         )
 
-        if not data:
-            return None, "Provider returned no image data."
-
-        b64_image = data[0].get(
-            "b64_json"
+        left = (
+            x
+            - rack_width // 2
+            + perspective_shift
         )
 
-        if not b64_image:
-            return None, "Provider returned no base64 image."
+        right = (
+            x
+            + rack_width // 2
+            + perspective_shift
+        )
 
-        return b64_image, None
-    def image_looks_blocked(
-        b64_image: str,
-    ) -> bool:
-        """
-        Detect likely provider error/safety placeholder
-        images without OCR.
-        """
+        draw.rounded_rectangle(
+            (
+                left,
+                rack_top,
+                right,
+                rack_bottom,
+            ),
+            radius=max(
+                8,
+                rack_width // 8,
+            ),
+            fill=(43, 52, 48, 255),
+            outline=(112, 118, 107, 180),
+            width=max(
+                2,
+                width // 500,
+            ),
+        )
 
-        try:
-            image_bytes = base64.b64decode(
-                b64_image
-            )
-
-            image = Image.open(
-                BytesIO(image_bytes)
-            ).convert("RGB")
-
-            image.thumbnail(
-                (180, 180)
-            )
-
-            colors = image.getcolors(
-                maxcolors=180 * 180
-            )
-
-            # Very flat images are suspicious.
-            if colors is not None:
-                if len(colors) < 120:
-                    return True
-
-            width, height = image.size
-
-            # Inspect the center, where provider
-            # error cards commonly appear.
-            center = image.crop(
+        slot_gap = max(
+            10,
+            int(
                 (
-                    int(width * 0.20),
-                    int(height * 0.30),
-                    int(width * 0.80),
-                    int(height * 0.70),
+                    rack_bottom
+                    - rack_top
+                )
+                / 11
+            ),
+        )
+
+        y = rack_top + slot_gap
+
+        while (
+            y
+            < rack_bottom
+            - slot_gap
+        ):
+            draw.line(
+                (
+                    left
+                    + int(
+                        rack_width
+                        * 0.14
+                    ),
+                    y,
+                    right
+                    - int(
+                        rack_width
+                        * 0.14
+                    ),
+                    y,
+                ),
+                fill=(
+                    131,
+                    138,
+                    126,
+                    115,
+                ),
+                width=max(
+                    1,
+                    width // 900,
+                ),
+            )
+
+            y += slot_gap
+
+        for light_index in range(4):
+            cy = (
+                rack_top
+                + int(
+                    (
+                        rack_bottom
+                        - rack_top
+                    )
+                    * (
+                        0.20
+                        + light_index
+                        * 0.17
+                    )
                 )
             )
 
-            full_stats = ImageStat.Stat(
-                image
+            radius = max(
+                2,
+                width // 650,
             )
 
-            center_stats = ImageStat.Stat(
-                center
+            draw.ellipse(
+                (
+                    right
+                    - int(
+                        rack_width
+                        * 0.20
+                    )
+                    - radius,
+                    cy - radius,
+                    right
+                    - int(
+                        rack_width
+                        * 0.20
+                    )
+                    + radius,
+                    cy + radius,
+                ),
+                fill=(
+                    183,
+                    165,
+                    123,
+                    205,
+                ),
             )
 
-            full_brightness = sum(
-                full_stats.mean
-            ) / 3
+    random.seed(
+        width * 1000
+        + height
+    )
 
-            center_brightness = sum(
-                center_stats.mean
-            ) / 3
+    for _ in range(5):
+        cx = random.randint(
+            int(width * 0.1),
+            int(width * 0.9),
+        )
 
-            # Provider placeholders commonly contain
-            # a large bright/neutral information card
-            # over a substantially darker background.
-            if (
-                center_brightness
-                - full_brightness
-                > 32
-            ):
-                return True
+        cy = random.randint(
+            int(height * 0.08),
+            int(height * 0.45),
+        )
 
-            return False
+        radius = random.randint(
+            max(
+                45,
+                min(width, height)
+                // 18,
+            ),
+            max(
+                70,
+                min(width, height)
+                // 8,
+            ),
+        )
 
-        except Exception:
-            return False        
+        glow = Image.new(
+            "RGBA",
+            (width, height),
+            (0, 0, 0, 0),
+        )
 
-    # ---------------------------------------------
-    # Generate + save image
-    # ---------------------------------------------
+        glow_draw = ImageDraw.Draw(
+            glow,
+            "RGBA",
+        )
+
+        glow_draw.ellipse(
+            (
+                cx - radius,
+                cy - radius,
+                cx + radius,
+                cy + radius,
+            ),
+            fill=(
+                206,
+                188,
+                145,
+                48,
+            ),
+        )
+
+        glow = glow.filter(
+            ImageFilter.GaussianBlur(
+                radius=max(
+                    18,
+                    radius // 2,
+                )
+            )
+        )
+
+        image = Image.alpha_composite(
+            image.convert(
+                "RGBA"
+            ),
+            glow,
+        ).convert(
+            "RGB"
+        )
+
+    buffer = BytesIO()
+
+    image.save(
+        buffer,
+        format="PNG",
+        optimize=True,
+    )
+
+    return buffer.getvalue()
+
+
+def _generate_cloudflare_image(
+    prompt: str,
+    width: int,
+    height: int,
+) -> bytes:
+    """
+    Call Cloudflare Workers AI FLUX.1 Schnell.
+
+    Cloudflare returns the generated image as Base64.
+    The provider output is normalized locally into a PNG
+    at the exact platform dimensions.
+    """
+
+    account_id = os.getenv(
+        "CLOUDFLARE_ACCOUNT_ID"
+    )
+
+    api_token = os.getenv(
+        "CLOUDFLARE_API_TOKEN"
+    )
+
+    if not account_id:
+        raise RuntimeError(
+            "CLOUDFLARE_ACCOUNT_ID is missing."
+        )
+
+    if not api_token:
+        raise RuntimeError(
+            "CLOUDFLARE_API_TOKEN is missing."
+        )
+
+    url = (
+        "https://api.cloudflare.com/client/v4/"
+        f"accounts/{account_id}/ai/run/"
+        f"{CLOUDFLARE_MODEL}"
+    )
+
+    response = requests.post(
+        url,
+        headers={
+            "Authorization": (
+                f"Bearer {api_token}"
+            ),
+            "Content-Type": (
+                "application/json"
+            ),
+        },
+        json={
+            "prompt": prompt,
+            "steps": 4,
+        },
+        timeout=180,
+    )
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            "Cloudflare image generation failed: "
+            f"{response.status_code} "
+            f"{response.text[:700]}"
+        )
 
     try:
-        b64_image, first_error = request_image(
-            primary_prompt
+        payload = response.json()
+
+    except ValueError as error:
+        raise RuntimeError(
+            "Cloudflare returned invalid JSON."
+        ) from error
+
+    if not payload.get(
+        "success",
+        False,
+    ):
+        raise RuntimeError(
+            "Cloudflare returned an unsuccessful "
+            f"response: {str(payload)[:700]}"
         )
 
-        used_prompt = primary_prompt
-        fallback_used = False
+    result = payload.get(
+        "result",
+        {},
+    )
 
-        should_retry = (
-            not b64_image
-            or image_looks_blocked(
-                b64_image
+    image_b64 = result.get(
+        "image"
+    )
+
+    if not image_b64:
+        raise RuntimeError(
+            "Cloudflare returned no image."
+        )
+
+    try:
+        provider_bytes = (
+            base64.b64decode(
+                image_b64
             )
         )
 
-        if should_retry:
-            if b64_image:
-                first_error = (
-                    "Provider returned a probable "
-                    "blocked/error placeholder image."
-                )
+        return _normalize_provider_image(
+            image_bytes=provider_bytes,
+            width=width,
+            height=height,
+        )
 
-            b64_image, second_error = request_image(
-                fallback_prompt
+    except Exception as error:
+        raise RuntimeError(
+            "Could not decode Cloudflare image."
+        ) from error
+
+
+@router.get("/generate")
+def generate_image(
+    prompt: str,
+    platform: str = "hero",
+    package_id: str | None = None,
+):
+    width, height = PLATFORM_SIZES.get(
+        platform,
+        PLATFORM_SIZES["hero"],
+    )
+
+    safe_platform = (
+        platform
+        if platform in PLATFORM_SIZES
+        else "hero"
+    )
+
+    primary_prompt = (
+        _build_primary_prompt(
+            prompt=prompt,
+            platform=safe_platform,
+        )
+    )
+
+    provider_error = None
+    fallback_used = False
+    model_name = (
+        "cloudflare-flux-1-schnell"
+    )
+    used_prompt = primary_prompt
+
+    try:
+        image_bytes = (
+            _generate_cloudflare_image(
+                prompt=primary_prompt,
+                width=width,
+                height=height,
             )
+        )
 
-            used_prompt = fallback_prompt
-            fallback_used = True
+    except Exception as error:
+        provider_error = str(
+            error
+        )
 
+        image_bytes = (
+            _create_local_safe_fallback(
+                width=width,
+                height=height,
+                platform=safe_platform,
+            )
+        )
+
+        fallback_used = True
+        model_name = (
+            "local-safe-fallback"
+        )
+        used_prompt = (
+            "Locally generated safe "
+            "technology fallback."
+        )
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S_%f"
+    )
+
+    safe_package_id = ""
+
+    if package_id:
+        safe_package_id = "".join(
+            char
+            for char in package_id
             if (
-                not b64_image
-                or image_looks_blocked(
-                    b64_image
-                )
-            ):
-                if b64_image:
-                    second_error = (
-                        "Provider returned a probable "
-                        "blocked/error placeholder image."
-                    )
-
-                raise HTTPException(
-                    status_code=502,
-                    detail=(
-                        "Pollinations image generation failed. "
-                        f"First attempt: {first_error}. "
-                        f"Fallback attempt: {second_error}."
-                    ),
-                )
-
-        # Convert provider base64 into real PNG bytes.
-        image_bytes = base64.b64decode(
-            b64_image
-        )
-
-        timestamp = datetime.now().strftime(
-            "%Y%m%d_%H%M%S_%f"
-        )
-
-        safe_platform = (
-            platform
-            if platform in PLATFORM_SIZES
-            else "hero"
-        )
-
-        # Make package ID safe for a Windows directory.
-        safe_package_id = ""
-
-        if package_id:
-            safe_package_id = "".join(
-                char
-                for char in package_id
-                if (
-                    char.isalnum()
-                    or char in ("-", "_")
-                )
+                char.isalnum()
+                or char in ("-", "_")
             )
-
-        if safe_package_id:
-            package_dir = (
-                GENERATED_DIR
-                / safe_package_id
-            )
-        else:
-            package_dir = GENERATED_DIR
-
-        package_dir.mkdir(
-            parents=True,
-            exist_ok=True,
         )
 
-        filename = (
-            f"{safe_platform}_{timestamp}.png"
+    if safe_package_id:
+        package_dir = (
+            GENERATED_DIR
+            / safe_package_id
         )
 
-        file_path = (
-            package_dir
-            / filename
+    else:
+        package_dir = (
+            GENERATED_DIR
         )
 
+    package_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    filename = (
+        f"{safe_platform}_"
+        f"{timestamp}.png"
+    )
+
+    file_path = (
+        package_dir
+        / filename
+    )
+
+    try:
         file_path.write_bytes(
             image_bytes
-        )
-        if package_id:
-            update_package_asset(
-               package_id=package_id,
-               platform=safe_platform,
-               asset={
-                   "filename": filename,
-                   "image_path": str(file_path),
-                   "width": width,
-                   "height": height,
-                   "model": "pollinations-zimage",
-           },
-          )
-        # Preserve existing frontend behavior.
-        image_url = (
-            "data:image/png;base64,"
-            f"{b64_image}"
-        )
-
-        return {
-            "status": "success",
-            "package_id": package_id,
-            "image_url": image_url,
-            "image_path": str(file_path),
-            "filename": filename,
-            "prompt": used_prompt,
-            "platform": safe_platform,
-            "width": width,
-            "height": height,
-            "model": "pollinations-zimage",
-            "fallback_used": fallback_used,
-        }
-
-    except HTTPException:
-        raise
-
-    except requests.RequestException as error:
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Could not reach Pollinations: "
-                f"{str(error)}"
-            ),
         )
 
     except Exception as error:
         raise HTTPException(
             status_code=500,
             detail=(
-                "Could not save generated image: "
-                f"{str(error)}"
+                "Could not save generated "
+                f"image: {error}"
             ),
+        ) from error
+
+    if package_id:
+        update_package_asset(
+            package_id=package_id,
+            platform=safe_platform,
+            asset={
+                "filename": filename,
+                "image_path": str(
+                    file_path
+                ),
+                "width": width,
+                "height": height,
+                "model": model_name,
+                "fallback_used":
+                    fallback_used,
+            },
         )
+
+    encoded_image = (
+        base64.b64encode(
+            image_bytes
+        ).decode(
+            "ascii"
+        )
+    )
+
+    image_url = (
+        "data:image/png;base64,"
+        f"{encoded_image}"
+    )
+
+    return {
+        "status": "success",
+        "package_id": package_id,
+        "image_url": image_url,
+        "image_path": str(
+            file_path
+        ),
+        "filename": filename,
+        "prompt": used_prompt,
+        "platform": safe_platform,
+        "width": width,
+        "height": height,
+        "model": model_name,
+        "fallback_used":
+            fallback_used,
+        "provider_error":
+            provider_error,
+    }
+
+
 @router.post("/upload-asset")
 async def upload_asset(
     package_id: str = Form(...),
@@ -516,9 +858,8 @@ async def upload_asset(
     slide: int | None = Form(None),
 ):
     """
-    Save a frontend-rendered visual such as
-    an infographic or carousel slide and link
-    it to the correct package history record.
+    Save a frontend-rendered visual such as an infographic
+    or carousel slide and link it to the package record.
     """
 
     allowed_platforms = {
@@ -530,7 +871,9 @@ async def upload_asset(
     if platform not in allowed_platforms:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported asset platform.",
+            detail=(
+                "Unsupported asset platform."
+            ),
         )
 
     safe_package_id = "".join(
@@ -561,7 +904,8 @@ async def upload_asset(
     )
 
     filename = (
-        f"{platform}_{timestamp}.png"
+        f"{platform}_"
+        f"{timestamp}.png"
     )
 
     file_path = (
@@ -570,38 +914,46 @@ async def upload_asset(
     )
 
     try:
-        image_bytes = await file.read()
+        image_bytes = (
+            await file.read()
+        )
 
         if not image_bytes:
             raise HTTPException(
                 status_code=400,
-                detail="Uploaded image is empty.",
+                detail=(
+                    "Uploaded image is empty."
+                ),
             )
 
         file_path.write_bytes(
             image_bytes
         )
 
-        linked = update_package_asset(
-            package_id=package_id,
-            platform=platform,
-            asset={
-                "slide": slide,
-                "filename": filename,
-                "image_path": str(file_path),
-                "content_type": (
-                    file.content_type
-                    or "image/png"
-                ),
-            },
+        linked = (
+            update_package_asset(
+                package_id=package_id,
+                platform=platform,
+                asset={
+                    "slide": slide,
+                    "filename": filename,
+                    "image_path": str(
+                        file_path
+                    ),
+                    "content_type": (
+                        file.content_type
+                        or "image/png"
+                    ),
+                },
+            )
         )
 
         if not linked:
-            # Do not leave an orphan file behind.
             try:
                 file_path.unlink(
                     missing_ok=True
                 )
+
             except OSError:
                 pass
 
@@ -615,10 +967,15 @@ async def upload_asset(
 
         return {
             "status": "success",
-            "package_id": package_id,
-            "platform": platform,
-            "filename": filename,
-            "image_path": str(file_path),
+            "package_id":
+                package_id,
+            "platform":
+                platform,
+            "filename":
+                filename,
+            "image_path": str(
+                file_path
+            ),
         }
 
     except HTTPException:
@@ -628,7 +985,7 @@ async def upload_asset(
         raise HTTPException(
             status_code=500,
             detail=(
-                "Could not save uploaded asset: "
-                f"{str(error)}"
+                "Could not save uploaded "
+                f"asset: {error}"
             ),
-        )
+        ) from error
