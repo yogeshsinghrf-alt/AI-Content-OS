@@ -16,6 +16,7 @@ import SourcePanel from "../components/SourcePanel";
 import VisualStudio from "../components/VisualStudio";
 import CarouselDeck from "../components/CarouselDeck";
 import SocialContentTabs from "../components/SocialContentTabs";
+import SystemStatus from "../components/SystemStatus";
 
 const API =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -556,7 +557,7 @@ export default function Home() {
           </div>
 
           <DashboardStats topic={topic} />
-
+          <SystemStatus />
           <HistoryPanel
             history={filteredHistory}
             onLoadHistory={loadHistory}

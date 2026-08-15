@@ -1,5 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from app.api.package import daily_package
 from app.api.email import send_package_email
 from app.services.package_service import (
@@ -18,7 +19,12 @@ from app.services.visual_asset_service import (
 scheduler = BackgroundScheduler(
     timezone="Asia/Kolkata"
 )
-
+scheduler_state = {
+    "last_run_started_at": None,
+    "last_run_finished_at": None,
+    "last_run_status": None,
+    "last_run_results": [],
+}
 
 def run_topic_pipeline(topic: str):
     """
@@ -321,21 +327,118 @@ def run_topic_pipeline(topic: str):
 def run_daily_pipeline():
     """
     Generate and email AI, Telecom
-    and Marketing packages.
+    and Marketing packages while
+    recording the latest scheduler result.
     """
+
+    india_time = ZoneInfo(
+        "Asia/Kolkata"
+    )
+
+    scheduler_state[
+        "last_run_started_at"
+    ] = datetime.now(
+        india_time
+    ).isoformat()
+
+    scheduler_state[
+        "last_run_finished_at"
+    ] = None
+
+    scheduler_state[
+        "last_run_status"
+    ] = "running"
+
+    scheduler_state[
+        "last_run_results"
+    ] = []
 
     results = []
 
-    for topic in [
-        "ai",
-        "telecom",
-        "marketing",
-    ]:
-        results.append(
-            run_topic_pipeline(topic)
+    try:
+        for topic in [
+            "ai",
+            "telecom",
+            "marketing",
+        ]:
+            result = run_topic_pipeline(
+                topic
+            )
+
+            results.append(
+                result
+            )
+
+        all_success = all(
+            isinstance(
+                result,
+                dict,
+            )
+            and result.get(
+                "status"
+            ) == "success"
+            for result in results
         )
 
-    return results
+        scheduler_state[
+            "last_run_status"
+        ] = (
+            "success"
+            if all_success
+            else "partial_failure"
+        )
+
+        scheduler_state[
+            "last_run_results"
+        ] = [
+            {
+                "topic": result.get(
+                    "topic"
+                ),
+                "status": result.get(
+                    "status"
+                ),
+                "package_id": result.get(
+                    "package_id"
+                ),
+                "message": result.get(
+                    "message"
+                ),
+            }
+            for result in results
+            if isinstance(
+                result,
+                dict,
+            )
+        ]
+
+        return results
+
+    except Exception as error:
+        scheduler_state[
+            "last_run_status"
+        ] = "error"
+
+        scheduler_state[
+            "last_run_results"
+        ] = [
+            {
+                "topic": "daily",
+                "status": "error",
+                "message": str(
+                    error
+                ),
+            }
+        ]
+
+        raise
+
+    finally:
+        scheduler_state[
+            "last_run_finished_at"
+        ] = datetime.now(
+            india_time
+        ).isoformat()
 
 
 def start_scheduler():

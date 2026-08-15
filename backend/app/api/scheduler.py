@@ -11,6 +11,7 @@ from fastapi import (
 from app.services.scheduler_service import (
     run_topic_pipeline,
     scheduler,
+    scheduler_state,
 )
 
 
@@ -166,8 +167,26 @@ def scheduler_status():
 
     return {
         "running": scheduler.running,
+        "timezone": "Asia/Kolkata",
         "active_pipelines":
             currently_active,
+        "last_run_started_at":
+            scheduler_state.get(
+                "last_run_started_at"
+            ),
+        "last_run_finished_at":
+            scheduler_state.get(
+                "last_run_finished_at"
+            ),
+        "last_run_status":
+            scheduler_state.get(
+                "last_run_status"
+            ),
+        "last_run_results":
+            scheduler_state.get(
+                "last_run_results",
+                [],
+            ),
         "jobs": [
             {
                 "id": job.id,
