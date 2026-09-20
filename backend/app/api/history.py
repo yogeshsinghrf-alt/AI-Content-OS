@@ -8,6 +8,7 @@ from app.services.history_service import (
 router = APIRouter()
 
 
+@router.get("")
 @router.get("/")
 def get_history():
     return list_history()
