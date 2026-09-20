@@ -6,6 +6,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from app.api.storage import (
+    router as storage_router,
+)
 
 from app.api.history import router as history_router
 from app.api.news import router as news_router
@@ -184,6 +187,11 @@ app.include_router(
     tags=["Email"],
 )
 
+app.include_router(
+    storage_router,
+    prefix="/storage",
+    tags=["Storage"],
+)
 
 @app.get("/")
 def home():
