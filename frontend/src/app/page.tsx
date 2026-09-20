@@ -188,7 +188,7 @@ function restoreImages(
   async function generatePlatformImage(
     prompt: string,
     platform: "linkedin" | "instagram" | "x",
-    packageId?: string
+    packageId?: string,
     slot?: string
   ) {
     const params = new URLSearchParams({
@@ -364,7 +364,7 @@ function restoreImages(
           generatePlatformImage(
             job.prompt,
             job.platform,
-            result.package_id
+            result.package_id,
             job.slot
           )
         )
