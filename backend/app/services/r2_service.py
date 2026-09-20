@@ -1,7 +1,9 @@
 import os
 import uuid
+import json
 
 import boto3
+from botocore.exceptions import ClientError
 
 
 def get_r2_client():
@@ -46,7 +48,130 @@ def get_r2_bucket_name():
 
     return bucket_name
 
+def put_json_object(
+    object_key: str,
+    data: dict,
+):
+    client = get_r2_client()
+    bucket_name = get_r2_bucket_name()
 
+    body = json.dumps(
+        data,
+        ensure_ascii=False,
+        indent=2,
+    ).encode("utf-8")
+
+    client.put_object(
+        Bucket=bucket_name,
+        Key=object_key,
+        Body=body,
+        ContentType="application/json",
+    )
+
+    return object_key
+
+
+def get_json_object(
+    object_key: str,
+):
+    client = get_r2_client()
+    bucket_name = get_r2_bucket_name()
+
+    try:
+        response = client.get_object(
+            Bucket=bucket_name,
+            Key=object_key,
+        )
+
+    except ClientError as error:
+        code = str(
+            error.response.get(
+                "Error",
+                {},
+            ).get(
+                "Code",
+                "",
+            )
+        )
+
+        if code in (
+            "NoSuchKey",
+            "404",
+            "NotFound",
+        ):
+            return None
+
+        raise
+
+    body = response["Body"].read()
+
+    return json.loads(
+        body.decode("utf-8")
+    )
+
+
+def delete_r2_object(
+    object_key: str,
+):
+    client = get_r2_client()
+    bucket_name = get_r2_bucket_name()
+
+    client.delete_object(
+        Bucket=bucket_name,
+        Key=object_key,
+    )
+
+    return True
+
+
+def list_r2_keys(
+    prefix: str,
+):
+    client = get_r2_client()
+    bucket_name = get_r2_bucket_name()
+
+    keys = []
+    continuation_token = None
+
+    while True:
+        params = {
+            "Bucket": bucket_name,
+            "Prefix": prefix,
+        }
+
+        if continuation_token:
+            params["ContinuationToken"] = (
+                continuation_token
+            )
+
+        response = client.list_objects_v2(
+            **params
+        )
+
+        for item in response.get(
+            "Contents",
+            [],
+        ):
+            key = item.get("Key")
+
+            if key:
+                keys.append(key)
+
+        if not response.get(
+            "IsTruncated"
+        ):
+            break
+
+        continuation_token = (
+            response.get(
+                "NextContinuationToken"
+            )
+        )
+
+        if not continuation_token:
+            break
+
+    return keys
 def test_r2_round_trip():
     client = get_r2_client()
     bucket_name = get_r2_bucket_name()
