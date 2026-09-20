@@ -171,7 +171,7 @@ export async function POST(
       "production",
     sameSite: "strict",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: 60 * 60 * 2,
   });
 
   return response;

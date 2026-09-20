@@ -1,4 +1,23 @@
+"use client";
+
 export default function Header() {
+  async function handleLogout() {
+    try {
+      const response = await fetch("/api/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Logout failed");
+      }
+
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      alert("Could not log out. Please try again.");
+    }
+  }
+
   return (
     <section className="relative overflow-hidden rounded-[32px] border border-[#E3DCD1] bg-[#FFFDF8] px-8 py-10 shadow-sm lg:px-10 lg:py-12">
 
@@ -9,16 +28,27 @@ export default function Header() {
 
       <div className="relative">
 
-        {/* Eyebrow */}
-        <div className="mb-6 flex flex-wrap items-center gap-3">
+        {/* Top row */}
+        <div className="mb-6 flex items-start justify-between gap-4">
 
-          <span className="rounded-full border border-[#D8D0C4] bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-[3px] text-[#756A5E]">
-            AI Social Content Studio
-          </span>
+          {/* Eyebrow */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full border border-[#D8D0C4] bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-[3px] text-[#756A5E]">
+              AI Social Content Studio
+            </span>
 
-          <span className="rounded-full bg-[#E7EEE8] px-4 py-2 text-[10px] font-bold uppercase tracking-[2px] text-[#536158]">
-            Live News → Content
-          </span>
+            <span className="rounded-full bg-[#E7EEE8] px-4 py-2 text-[10px] font-bold uppercase tracking-[2px] text-[#536158]">
+              Live News → Content
+            </span>
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="shrink-0 rounded-full border border-[#D8D0C4] bg-white px-4 py-2 text-[11px] font-semibold text-[#625A52] transition hover:bg-[#F4EFE8]"
+          >
+            Log out
+          </button>
 
         </div>
 
@@ -45,7 +75,6 @@ export default function Header() {
 
         {/* Product capabilities */}
         <div className="mt-8 flex flex-wrap gap-2">
-
           {[
             "AI · Telecom · Marketing",
             "8 Story Outputs",
@@ -61,7 +90,6 @@ export default function Header() {
               {feature}
             </span>
           ))}
-
         </div>
 
         {/* Product identity */}
