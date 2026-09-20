@@ -1,10 +1,31 @@
-import json
 from datetime import datetime
-from pathlib import Path
+import threading
+
+from app.services.r2_service import (
+    get_json_object,
+    list_r2_keys,
+    put_json_object,
+)
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
-HISTORY_DIR = BASE_DIR / "history"
+HISTORY_PREFIX = "history/"
+
+# Current Render deployment is one application instance.
+# This prevents parallel image requests from overwriting
+# each other's asset metadata during R2 read/modify/write.
+_package_update_lock = threading.Lock()
+
+
+def _safe_topic(topic: str):
+    value = "".join(
+        char
+        if char.isalnum()
+        or char in ("-", "_")
+        else "_"
+        for char in str(topic)
+    )
+
+    return value or "general"
 
 
 def save_package(
@@ -12,110 +33,103 @@ def save_package(
     topic: str,
 ):
     """
-    Save a generated content package
-    to the backend history directory.
+    Persist a generated content package
+    in Cloudflare R2.
     """
 
-    HISTORY_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    package_id = str(
+        response.get(
+            "package_id",
+            "",
+        )
+    ).strip()
 
-    timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S_%f"
-    )
-
-    filename = (
-        f"{timestamp}_{topic}.json"
-    )
-
-    file_path = (
-        HISTORY_DIR / filename
-    )
-
-    with file_path.open(
-        "w",
-        encoding="utf-8",
-    ) as f:
-        json.dump(
-            response,
-            f,
-            indent=2,
-            ensure_ascii=False,
+    if not package_id:
+        package_id = datetime.now().strftime(
+            "%Y%m%d_%H%M%S_%f"
         )
 
-    return str(file_path)
+    filename = (
+        f"{package_id}_"
+        f"{_safe_topic(topic)}.json"
+    )
+
+    object_key = (
+        f"{HISTORY_PREFIX}{filename}"
+    )
+
+    put_json_object(
+        object_key,
+        response,
+    )
+
+    return object_key
 
 
 def find_package_file(
     package_id: str,
 ):
     """
-    Find the history JSON file belonging
+    Find the R2 history object belonging
     to a specific package_id.
     """
 
     if not package_id:
         return None
 
-    if not HISTORY_DIR.exists():
-        return None
+    keys = list_r2_keys(
+        f"{HISTORY_PREFIX}{package_id}"
+    )
 
-    for file_path in HISTORY_DIR.glob(
-        "*.json"
-    ):
+    for object_key in keys:
         try:
-            with file_path.open(
-                "r",
-                encoding="utf-8",
-            ) as f:
-                data = json.load(f)
+            data = get_json_object(
+                object_key
+            )
 
-        except (
-            json.JSONDecodeError,
-            OSError,
-        ):
+        except Exception as error:
+            print(
+                "Could not read package "
+                f"{object_key}: {error}"
+            )
             continue
 
         if (
-            data.get("package_id")
+            isinstance(data, dict)
+            and data.get("package_id")
             == package_id
         ):
-            return file_path
+            return object_key
 
     return None
+
+
 def get_package_by_id(
     package_id: str,
 ):
     """
-    Load the complete saved package
-    belonging to a specific package_id.
+    Load a complete package from R2.
     """
 
-    file_path = find_package_file(
+    object_key = find_package_file(
         package_id
     )
 
-    if file_path is None:
+    if object_key is None:
         return None
 
     try:
-        with file_path.open(
-            "r",
-            encoding="utf-8",
-        ) as f:
-            return json.load(f)
-
-    except (
-        json.JSONDecodeError,
-        OSError,
-    ) as error:
-        print(
-            f"Could not load package "
-            f"{package_id}: {error}"
+        return get_json_object(
+            object_key
         )
 
+    except Exception as error:
+        print(
+            "Could not load package "
+            f"{package_id}: {error}"
+        )
         return None
+
 
 def update_package_asset(
     package_id: str,
@@ -123,82 +137,79 @@ def update_package_asset(
     asset: dict,
 ):
     """
-    Attach one generated visual asset to
-    the correct saved content package.
+    Attach generated asset metadata
+    to the correct package in R2.
     """
 
-    file_path = find_package_file(
-        package_id
-    )
-
-    if file_path is None:
-        return False
-
-    try:
-        with file_path.open(
-            "r",
-            encoding="utf-8",
-        ) as f:
-            data = json.load(f)
-
-        assets = data.get(
-            "assets",
-            {},
+    with _package_update_lock:
+        object_key = find_package_file(
+            package_id
         )
 
-        if not isinstance(
-            assets,
-            dict,
-        ):
-            assets = {}
+        if object_key is None:
+            return False
 
-        if platform == "carousel":
-            carousel_assets = assets.get(
-                "carousel",
-                [],
+        try:
+            data = get_json_object(
+                object_key
             )
 
             if not isinstance(
-                carousel_assets,
-                list,
-            ):
-                carousel_assets = []
-
-            carousel_assets.append(
-                asset
-            )
-
-            assets["carousel"] = (
-                carousel_assets
-            )
-
-        else:
-            assets[platform] = asset
-
-        data["assets"] = assets
-
-        
-
-        with file_path.open(
-            "w",
-            encoding="utf-8",
-        ) as f:
-            json.dump(
                 data,
-                f,
-                indent=2,
-                ensure_ascii=False,
+                dict,
+            ):
+                return False
+
+            assets = data.get(
+                "assets",
+                {},
             )
 
-        return True
+            if not isinstance(
+                assets,
+                dict,
+            ):
+                assets = {}
 
-    except (
-        json.JSONDecodeError,
-        OSError,
-    ) as error:
-        print(
-            f"Could not update package assets "
-            f"for {package_id}: {error}"
-        )
+            if platform == "carousel":
+                carousel_assets = (
+                    assets.get(
+                        "carousel",
+                        [],
+                    )
+                )
 
-        return False
+                if not isinstance(
+                    carousel_assets,
+                    list,
+                ):
+                    carousel_assets = []
+
+                carousel_assets.append(
+                    asset
+                )
+
+                assets["carousel"] = (
+                    carousel_assets
+                )
+
+            else:
+                assets[platform] = asset
+
+            data["assets"] = assets
+
+            put_json_object(
+                object_key,
+                data,
+            )
+
+            return True
+
+        except Exception as error:
+            print(
+                "Could not update package "
+                f"assets for {package_id}: "
+                f"{error}"
+            )
+
+            return False

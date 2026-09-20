@@ -1,10 +1,11 @@
-import json
-import os
-from pathlib import Path
+from app.services.r2_service import (
+    delete_r2_object,
+    get_json_object,
+    list_r2_keys,
+)
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
-HISTORY_DIR = BASE_DIR / "history"
+HISTORY_PREFIX = "history/"
 
 def _extract_articles_from_package(
     data: dict,
@@ -106,40 +107,57 @@ def _extract_articles_from_package(
 def list_history():
     files = []
 
-    if not HISTORY_DIR.exists():
+    try:
+        object_keys = list_r2_keys(
+            HISTORY_PREFIX
+        )
+
+    except Exception as error:
+        print(
+            "Could not list R2 history: "
+            f"{error}"
+        )
         return files
 
-    for filename in sorted(
-        os.listdir(HISTORY_DIR),
+    for object_key in sorted(
+        object_keys,
         reverse=True,
     ):
-        if not filename.endswith(".json"):
+        if not object_key.endswith(
+            ".json"
+        ):
             continue
-
-        file_path = HISTORY_DIR / filename
 
         try:
-            with open(
-                file_path,
-                "r",
-                encoding="utf-8",
-            ) as f:
-                data = json.load(f)
+            data = get_json_object(
+                object_key
+            )
 
-        except (
-            json.JSONDecodeError,
-            OSError,
-        ) as error:
+        except Exception as error:
             print(
-                f"Skipping unreadable history file "
-                f"{filename}: {error}"
+                "Skipping unreadable R2 "
+                f"history object "
+                f"{object_key}: {error}"
             )
             continue
+
+        if not isinstance(
+            data,
+            dict,
+        ):
+            continue
+
+        filename = object_key.rsplit(
+            "/",
+            1,
+        )[-1]
 
         files.append(
             {
                 "filename": filename,
-                "topic": data.get("topic"),
+                "topic": data.get(
+                    "topic"
+                ),
                 "title": data.get(
                     "article_title"
                 ),
@@ -158,48 +176,69 @@ def list_history():
 def get_history_file(
     filename: str,
 ):
-    file_path = HISTORY_DIR / filename
-
-    if not file_path.exists():
+    if (
+        not filename
+        or not filename.endswith(".json")
+        or "/" in filename
+        or "\\" in filename
+    ):
         return None
 
-    try:
-        with open(
-            file_path,
-            "r",
-            encoding="utf-8",
-        ) as f:
-            return json.load(f)
+    object_key = (
+        f"{HISTORY_PREFIX}{filename}"
+    )
 
-    except (
-        json.JSONDecodeError,
-        OSError,
-    ) as error:
+    try:
+        return get_json_object(
+            object_key
+        )
+
+    except Exception as error:
         print(
-            f"Skipping unreadable history file "
+            "Could not read R2 history "
             f"{filename}: {error}"
         )
+
         return None
 
 
 def delete_history_file(
     filename: str,
 ):
-    file_path = HISTORY_DIR / filename
+    if (
+        not filename
+        or not filename.endswith(".json")
+        or "/" in filename
+        or "\\" in filename
+    ):
+        return False
 
-    if file_path.exists():
-        try:
-            file_path.unlink()
-            return True
+    object_key = (
+        f"{HISTORY_PREFIX}{filename}"
+    )
 
-        except OSError as error:
-            print(
-                f"Could not delete history file "
-                f"{filename}: {error}"
-            )
+    try:
+        existing = get_json_object(
+            object_key
+        )
+
+        if existing is None:
             return False
 
-    return False
+        delete_r2_object(
+            object_key
+        )
+
+        return True
+
+    except Exception as error:
+        print(
+            "Could not delete R2 "
+            f"history {filename}: "
+            f"{error}"
+        )
+
+        return False
 
 
 def get_latest_history_file():
