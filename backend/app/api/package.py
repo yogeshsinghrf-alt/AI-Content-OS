@@ -423,22 +423,62 @@ def daily_package(
             ),
         }
 
-    # If fewer than 8 fresh articles exist,
-    # reuse the available article pool only
-    # as a last-resort fallback.
-    article_index = 0
+    # -------------------------------------------------
+    # Fill remaining slots with other DISTINCT current
+    # articles, even if they were used in recent history.
+    #
+    # Never duplicate the same article inside one package.
+    # Intra-package uniqueness is more important than
+    # avoiding all cross-day reuse.
+    # -------------------------------------------------
 
-    while len(selected_articles) < len(
-        slot_names
-    ):
-        selected_articles.append(
-            selected_articles[
-                article_index
-                % len(selected_articles)
-            ]
+    if len(selected_articles) < len(slot_names):
+        for article in unique_articles:
+            if len(selected_articles) >= len(
+                slot_names
+            ):
+                break
+
+            if article["link"] in used_links:
+                continue
+
+            selected_articles.append(
+                article
+            )
+
+            used_links.add(
+                article["link"]
+            )
+
+            used_sources.add(
+                article["source"]
+            )
+
+    # -------------------------------------------------
+    # Commercial-quality rule:
+    # Never silently duplicate one story across slots.
+    # -------------------------------------------------
+
+    if len(selected_articles) < len(slot_names):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "INSUFFICIENT_DISTINCT_STORIES",
+                "message": (
+                    "Not enough distinct current stories "
+                    "were available to build the full "
+                    "8-story content package. "
+                    "Please try again later."
+                ),
+                "available": len(
+                    selected_articles
+                ),
+                "required": len(
+                    slot_names
+                ),
+                "retryable": True,
+            },
         )
-
-        article_index += 1
 
     selected_stories = []
 
