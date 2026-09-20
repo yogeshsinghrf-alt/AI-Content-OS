@@ -69,7 +69,80 @@ export default function Home() {
       setHistory([]);
     }
   }
+  function getSavedAssetUrl(
+  result: any,
+  assetKey: string
+) {
+  const asset =
+    result?.assets?.[assetKey];
 
+  const filename =
+    asset?.filename;
+
+  const packageId =
+    result?.package_id;
+
+  if (!filename || !packageId) {
+    return "";
+  }
+
+  const params =
+    new URLSearchParams({
+      package_id: packageId,
+      filename,
+    });
+
+  return (
+    `${API}/image/asset?` +
+    params.toString()
+  );
+}
+
+function restoreImages(
+  result: any
+) {
+  setLinkedinImage1(
+    getSavedAssetUrl(
+      result,
+      "linkedin_1"
+    )
+  );
+
+  setLinkedinImage2(
+    getSavedAssetUrl(
+      result,
+      "linkedin_2"
+    )
+  );
+
+  setInstagramImage1(
+    getSavedAssetUrl(
+      result,
+      "instagram_1"
+    )
+  );
+
+  setInstagramImage2(
+    getSavedAssetUrl(
+      result,
+      "instagram_2"
+    )
+  );
+
+  setXImage1(
+    getSavedAssetUrl(
+      result,
+      "x_1"
+    )
+  );
+
+  setXImage2(
+    getSavedAssetUrl(
+      result,
+      "x_2"
+    )
+  );
+}
   async function loadHistory(filename: string) {
     const response = await fetch(
       `${API}/history/${filename}`
@@ -88,7 +161,7 @@ export default function Home() {
     }
 
     setData(result);
-    resetImages();
+    restoreImages(result);
     alert("History loaded.");
   }
 
@@ -116,6 +189,7 @@ export default function Home() {
     prompt: string,
     platform: "linkedin" | "instagram" | "x",
     packageId?: string
+    slot?: string
   ) {
     const params = new URLSearchParams({
       prompt,
@@ -124,6 +198,9 @@ export default function Home() {
 
     if (packageId) {
       params.set("package_id", packageId);
+    }
+    if (slot) {
+      params.set("slot", slot);
     }
 
     const url =
@@ -222,6 +299,7 @@ export default function Home() {
       const imageJobs = [
         {
           key: "linkedin1",
+          slot: "linkedin_1",
           platform: "linkedin" as const,
           prompt:
             content.linkedin_1_visual_prompt ||
@@ -231,6 +309,7 @@ export default function Home() {
         },
         {
           key: "linkedin2",
+          slot: "linkedin_2",
           platform: "linkedin" as const,
           prompt:
             content.linkedin_2_visual_prompt ||
@@ -240,6 +319,7 @@ export default function Home() {
         },
         {
           key: "instagram1",
+          slot: "instagram_1",
           platform: "instagram" as const,
           prompt:
             content.instagram_1_visual_prompt ||
@@ -249,6 +329,7 @@ export default function Home() {
         },
         {
           key: "instagram2",
+          slot: "instagram_2",
           platform: "instagram" as const,
           prompt:
             content.instagram_2_visual_prompt ||
@@ -258,6 +339,7 @@ export default function Home() {
         },
         {
           key: "x1",
+          slot: "x_1",
           platform: "x" as const,
           prompt:
             content.x_1_visual_prompt ||
@@ -267,6 +349,7 @@ export default function Home() {
         },
         {
           key: "x2",
+          slot: "x_2",
           platform: "x" as const,
           prompt:
             content.x_2_visual_prompt ||
@@ -282,6 +365,7 @@ export default function Home() {
             job.prompt,
             job.platform,
             result.package_id
+            job.slot
           )
         )
       );

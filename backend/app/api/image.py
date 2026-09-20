@@ -4,6 +4,7 @@ import random
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from fastapi.responses import FileResponse
 
 import requests
 from fastapi import (
@@ -687,6 +688,7 @@ def generate_image(
     prompt: str,
     platform: str = "hero",
     package_id: str | None = None,
+    slot: str | None = None,
 ):
     width, height = PLATFORM_SIZES.get(
         platform,
@@ -698,7 +700,20 @@ def generate_image(
         if platform in PLATFORM_SIZES
         else "hero"
     )
+    allowed_slots = {
+        "linkedin_1",
+        "linkedin_2",
+        "instagram_1",
+        "instagram_2",
+        "x_1",
+        "x_2",
+    }
 
+    asset_key = (
+        slot
+        if slot in allowed_slots
+        else safe_platform
+    )
     primary_prompt = (
         _build_primary_prompt(
             prompt=prompt,
@@ -777,7 +792,7 @@ def generate_image(
     )
 
     filename = (
-        f"{safe_platform}_"
+        f"{asset_key}_"
         f"{timestamp}.png"
     )
 
@@ -803,7 +818,7 @@ def generate_image(
     if package_id:
         update_package_asset(
             package_id=package_id,
-            platform=safe_platform,
+            platform=asset_key,
             asset={
                 "filename": filename,
                 "image_path": str(
@@ -840,6 +855,7 @@ def generate_image(
         "filename": filename,
         "prompt": used_prompt,
         "platform": safe_platform,
+        "slot": asset_key,
         "width": width,
         "height": height,
         "model": model_name,
@@ -849,7 +865,54 @@ def generate_image(
             provider_error,
     }
 
+@router.get("/asset")
+def get_generated_asset(
+    package_id: str,
+    filename: str,
+):
+    safe_package_id = "".join(
+        char
+        for char in package_id
+        if char.isalnum()
+        or char in ("-", "_")
+    )
 
+    safe_filename = Path(
+        filename
+    ).name
+
+    if (
+        not safe_package_id
+        or safe_filename != filename
+        or not safe_filename.lower().endswith(
+            ".png"
+        )
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid asset request.",
+        )
+
+    file_path = (
+        GENERATED_DIR
+        / safe_package_id
+        / safe_filename
+    )
+
+    if (
+        not file_path.exists()
+        or not file_path.is_file()
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="Generated asset not found.",
+        )
+
+    return FileResponse(
+        path=file_path,
+        media_type="image/png",
+        filename=safe_filename,
+    )
 @router.post("/upload-asset")
 async def upload_asset(
     package_id: str = Form(...),
