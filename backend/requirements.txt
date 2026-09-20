@@ -15,3 +15,4 @@ reportlab
 APScheduler<4
 resend
 python-multipart
+boto3
