@@ -172,6 +172,57 @@ def list_r2_keys(
             break
 
     return keys
+    def put_bytes_object(
+    object_key: str,
+    data: bytes,
+    content_type: str = "application/octet-stream",
+    ):
+     client = get_r2_client()
+     bucket_name = get_r2_bucket_name()
+
+     client.put_object(
+        Bucket=bucket_name,
+        Key=object_key,
+        Body=data,
+        ContentType=content_type,
+    )
+
+    return object_key
+
+
+def get_bytes_object(
+    object_key: str,
+):
+    client = get_r2_client()
+    bucket_name = get_r2_bucket_name()
+
+    try:
+        response = client.get_object(
+            Bucket=bucket_name,
+            Key=object_key,
+        )
+
+    except ClientError as error:
+        code = str(
+            error.response.get(
+                "Error",
+                {},
+            ).get(
+                "Code",
+                "",
+            )
+        )
+
+        if code in (
+            "NoSuchKey",
+            "404",
+            "NotFound",
+        ):
+            return None
+
+        raise
+
+    return response["Body"].read()
 def test_r2_round_trip():
     client = get_r2_client()
     bucket_name = get_r2_bucket_name()

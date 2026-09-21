@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 import requests
 from fastapi import (
@@ -17,6 +17,10 @@ from fastapi import (
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from app.services.package_service import update_package_asset
+from app.services.r2_service import (
+    get_bytes_object,
+    put_bytes_object,
+)
 
 
 router = APIRouter()
@@ -775,35 +779,28 @@ def generate_image(
             )
         )
 
-    if safe_package_id:
-        package_dir = (
-            GENERATED_DIR
-            / safe_package_id
-        )
-
-    else:
-        package_dir = (
-            GENERATED_DIR
-        )
-
-    package_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
     filename = (
         f"{asset_key}_"
         f"{timestamp}.png"
     )
 
-    file_path = (
-        package_dir
-        / filename
+    storage_package_id = (
+        safe_package_id
+        if safe_package_id
+        else "unlinked"
+    )
+
+    object_key = (
+        "generated-images/"
+        f"{storage_package_id}/"
+        f"{filename}"
     )
 
     try:
-        file_path.write_bytes(
-            image_bytes
+        put_bytes_object(
+            object_key=object_key,
+            data=image_bytes,
+            content_type="image/png",
         )
 
     except Exception as error:
@@ -811,7 +808,7 @@ def generate_image(
             status_code=500,
             detail=(
                 "Could not save generated "
-                f"image: {error}"
+                f"image to R2: {error}"
             ),
         ) from error
 
@@ -821,9 +818,8 @@ def generate_image(
             platform=asset_key,
             asset={
                 "filename": filename,
-                "image_path": str(
-                    file_path
-                ),
+                "image_path": object_key,
+                "object_key": object_key,
                 "width": width,
                 "height": height,
                 "model": model_name,
@@ -849,9 +845,8 @@ def generate_image(
         "status": "success",
         "package_id": package_id,
         "image_url": image_url,
-        "image_path": str(
-            file_path
-        ),
+        "image_path": object_key,
+        "object_key": object_key,
         "filename": filename,
         "prompt": used_prompt,
         "platform": safe_platform,
@@ -893,25 +888,39 @@ def get_generated_asset(
             detail="Invalid asset request.",
         )
 
-    file_path = (
-        GENERATED_DIR
-        / safe_package_id
-        / safe_filename
+    object_key = (
+        "generated-images/"
+        f"{safe_package_id}/"
+        f"{safe_filename}"
     )
 
-    if (
-        not file_path.exists()
-        or not file_path.is_file()
-    ):
+    try:
+        image_bytes = get_bytes_object(
+            object_key
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Could not read generated "
+                f"asset from R2: {error}"
+            ),
+        ) from error
+
+    if image_bytes is None:
         raise HTTPException(
             status_code=404,
             detail="Generated asset not found.",
         )
 
-    return FileResponse(
-        path=file_path,
+    return Response(
+        content=image_bytes,
         media_type="image/png",
-        filename=safe_filename,
+        headers={
+            "Cache-Control":
+                "private, max-age=3600"
+        },
     )
 @router.post("/upload-asset")
 async def upload_asset(
