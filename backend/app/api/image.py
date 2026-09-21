@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from app.services.package_service import update_package_asset
 from app.services.r2_service import (
+    delete_r2_object,
     get_bytes_object,
     put_bytes_object,
 )
@@ -39,17 +40,7 @@ PLATFORM_SIZES = {
 
 CLOUDFLARE_MODEL = "@cf/black-forest-labs/flux-1-schnell"
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]
 
-GENERATED_DIR = (
-    BACKEND_DIR
-    / "generated_images"
-)
-
-GENERATED_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
 
 
 def _clean_prompt_text(
@@ -930,8 +921,9 @@ async def upload_asset(
     slide: int | None = Form(None),
 ):
     """
-    Save a frontend-rendered visual such as an infographic
-    or carousel slide and link it to the package record.
+    Save a frontend-rendered visual such as an infographic,
+    quote card or carousel slide into Cloudflare R2 and link
+    it to the package history record.
     """
 
     allowed_platforms = {
@@ -943,9 +935,7 @@ async def upload_asset(
     if platform not in allowed_platforms:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Unsupported asset platform."
-            ),
+            detail="Unsupported asset platform.",
         )
 
     safe_package_id = "".join(
@@ -961,72 +951,68 @@ async def upload_asset(
             detail="Invalid package_id.",
         )
 
-    package_dir = (
-        GENERATED_DIR
-        / safe_package_id
-    )
-
-    package_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
     timestamp = datetime.now().strftime(
         "%Y%m%d_%H%M%S_%f"
     )
 
-    filename = (
-        f"{platform}_"
-        f"{timestamp}.png"
-    )
+    if (
+        platform == "carousel"
+        and slide is not None
+    ):
+        filename = (
+            f"carousel_slide_{slide}_"
+            f"{timestamp}.png"
+        )
+    else:
+        filename = (
+            f"{platform}_"
+            f"{timestamp}.png"
+        )
 
-    file_path = (
-        package_dir
-        / filename
+    object_key = (
+        "generated-images/"
+        f"{safe_package_id}/"
+        f"{filename}"
     )
 
     try:
-        image_bytes = (
-            await file.read()
-        )
+        image_bytes = await file.read()
 
         if not image_bytes:
             raise HTTPException(
                 status_code=400,
-                detail=(
-                    "Uploaded image is empty."
-                ),
+                detail="Uploaded image is empty.",
             )
 
-        file_path.write_bytes(
-            image_bytes
+        content_type = (
+            file.content_type
+            or "image/png"
         )
 
-        linked = (
-            update_package_asset(
-                package_id=package_id,
-                platform=platform,
-                asset={
-                    "slide": slide,
-                    "filename": filename,
-                    "image_path": str(
-                        file_path
-                    ),
-                    "content_type": (
-                        file.content_type
-                        or "image/png"
-                    ),
-                },
-            )
+        put_bytes_object(
+            object_key=object_key,
+            data=image_bytes,
+            content_type=content_type,
+        )
+
+        linked = update_package_asset(
+            package_id=package_id,
+            platform=platform,
+            asset={
+                "slide": slide,
+                "filename": filename,
+                "image_path": object_key,
+                "object_key": object_key,
+                "content_type": content_type,
+            },
         )
 
         if not linked:
             try:
-                file_path.unlink(
-                    missing_ok=True
+                delete_r2_object(
+                    object_key
                 )
-
-            except OSError:
+            except Exception:
                 pass
 
             raise HTTPException(
@@ -1039,15 +1025,11 @@ async def upload_asset(
 
         return {
             "status": "success",
-            "package_id":
-                package_id,
-            "platform":
-                platform,
-            "filename":
-                filename,
-            "image_path": str(
-                file_path
-            ),
+            "package_id": package_id,
+            "platform": platform,
+            "filename": filename,
+            "image_path": object_key,
+            "object_key": object_key,
         }
 
     except HTTPException:
