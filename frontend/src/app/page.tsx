@@ -496,14 +496,15 @@ if (
     }
 
     try {
-      const dataUrl = await toPng(
-        packageRef.current,
-        {
-          cacheBust: true,
-          pixelRatio: 1.5,
-          backgroundColor: "#F5F2EA",
-        }
-      );
+const dataUrl = await toPng(
+  packageRef.current,
+  {
+    cacheBust: true,
+    includeQueryParams: true,
+    pixelRatio: 1.5,
+    backgroundColor: "#F5F2EA",
+  }
+);
 
       const link =
         document.createElement("a");

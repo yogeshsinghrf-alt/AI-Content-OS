@@ -97,12 +97,13 @@ export default function VisualPostCard({
     throw new Error("Visual card not found.");
   }
 
-  return await toPng(cardRef.current, {
-    cacheBust: true,
-    pixelRatio: 1,
-    width: config.width,
-    height: config.height,
-  });
+return await toPng(cardRef.current, {
+  cacheBust: true,
+  includeQueryParams: true,
+  pixelRatio: 1,
+  width: config.width,
+  height: config.height,
+});
 }
 
 async function downloadPng() {
