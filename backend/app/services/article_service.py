@@ -142,3 +142,74 @@ def fetch_article_text(
             f"{url}: {error}"
         )
         return ""
+def fetch_article_title(
+    url: str,
+) -> str:
+    """
+    Extract a useful article/page title.
+    Returns an empty string if extraction fails.
+    """
+
+    if not url:
+        return ""
+
+    try:
+        response = requests.get(
+            url,
+            headers=DEFAULT_HEADERS,
+            timeout=20,
+        )
+
+        response.raise_for_status()
+
+        soup = BeautifulSoup(
+            response.text,
+            "html.parser",
+        )
+
+        og_title = soup.find(
+            "meta",
+            property="og:title",
+        )
+
+        if (
+            og_title
+            and og_title.get("content")
+        ):
+            return clean_text(
+                og_title["content"]
+            )[:300]
+
+        h1 = soup.find("h1")
+
+        if h1:
+            title = h1.get_text(
+                " ",
+                strip=True,
+            )
+
+            if title:
+                return clean_text(
+                    title
+                )[:300]
+
+        if soup.title:
+            title = soup.title.get_text(
+                " ",
+                strip=True,
+            )
+
+            if title:
+                return clean_text(
+                    title
+                )[:300]
+
+        return ""
+
+    except Exception as error:
+        print(
+            "Could not extract article "
+            f"title {url}: {error}"
+        )
+
+        return ""        

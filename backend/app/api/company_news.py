@@ -15,6 +15,7 @@ from app.ai.gemini_service import (
 )
 from app.services.article_service import (
     fetch_article_text,
+    fetch_article_title,
 )
 from app.services.package_service import (
     save_package,
@@ -44,7 +45,87 @@ def clean_value(
         str(value or "").split()
     )[:max_length]
 
+def parse_json_response(
+    raw_text: str,
+):
+    text = str(
+        raw_text or ""
+    ).strip()
 
+    # Remove Markdown code fences when Gemini
+    # wraps an otherwise valid JSON response.
+    if text.startswith("```"):
+        lines = text.splitlines()
+
+        if lines:
+            lines = lines[1:]
+
+        if (
+            lines
+            and lines[-1].strip()
+            == "```"
+        ):
+            lines = lines[:-1]
+
+        text = "\n".join(
+            lines
+        ).strip()
+
+    try:
+        result = json.loads(
+            text
+        )
+
+        if isinstance(
+            result,
+            dict,
+        ):
+            return result
+
+    except json.JSONDecodeError:
+        pass
+
+    # Gemini can occasionally place a short
+    # explanation around the JSON object.
+    first_brace = text.find("{")
+
+    if first_brace == -1:
+        raise AIServiceError(
+            "Gemini response did not contain JSON."
+        )
+
+    decoder = json.JSONDecoder()
+
+    try:
+        result, _ = decoder.raw_decode(
+            text[first_brace:]
+        )
+
+        if not isinstance(
+            result,
+            dict,
+        ):
+            raise AIServiceError(
+                "Gemini JSON response "
+                "was not an object."
+            )
+
+        return result
+
+    except json.JSONDecodeError as error:
+        print(
+            "COMPANY NEWS JSON PARSE ERROR:",
+            str(error),
+        )
+
+        print(
+            "GEMINI RESPONSE PREVIEW:",
+            text[:800],
+        )
+
+        raise AIServiceError(
+            "Gemini returned invalid JSON."
+        ) from error
 def get_source_name(
     article_url: str,
     brand_name: str,
@@ -106,7 +187,12 @@ def generate_company_news(
                 ),
             },
         )
-
+    article_title = (
+        fetch_article_title(
+            article_url
+        )
+        or "Company Announcement"
+    )
     brand_profile = {
         "enabled":
             request.brand_enabled,
@@ -187,7 +273,8 @@ into a complete communication package.
 
 SOURCE URL:
 {article_url}
-
+SOURCE TITLE:
+{article_title}
 SOURCE ORGANISATION:
 {source_name}
 
@@ -345,15 +432,11 @@ Use exactly this structure:
             prompt
         )
 
-        try:
-            generated = json.loads(
+        generated = (
+            parse_json_response(
                 raw_package
             )
-
-        except json.JSONDecodeError as error:
-            raise AIServiceError(
-                "Gemini returned invalid JSON."
-            ) from error
+        )
 
         linkedin_1 = generated.get(
             "linkedin_option_1",
@@ -650,9 +733,7 @@ Use exactly this structure:
         {
             "slot": slot,
             "source": source_name,
-            "title": (
-                "Company Announcement"
-            ),
+            "title": article_title,
             "link": article_url,
         }
         for slot in slot_names
@@ -667,7 +748,7 @@ Use exactly this structure:
             brand_profile,
         "source": source_name,
         "article_title":
-            "Company Announcement",
+            article_title,
         "article_link":
             article_url,
         "stories":
