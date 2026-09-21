@@ -172,15 +172,15 @@ def list_r2_keys(
             break
 
     return keys
-    def put_bytes_object(
+def put_bytes_object(
     object_key: str,
     data: bytes,
     content_type: str = "application/octet-stream",
-    ):
-     client = get_r2_client()
-     bucket_name = get_r2_bucket_name()
+):
+    client = get_r2_client()
+    bucket_name = get_r2_bucket_name()
 
-     client.put_object(
+    client.put_object(
         Bucket=bucket_name,
         Key=object_key,
         Body=data,
