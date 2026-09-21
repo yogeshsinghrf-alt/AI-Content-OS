@@ -222,9 +222,37 @@ def delete_history_file(
             object_key
         )
 
-        if existing is None:
+        if not isinstance(
+            existing,
+            dict,
+        ):
             return False
 
+        package_id = str(
+            existing.get(
+                "package_id",
+                "",
+            )
+        ).strip()
+
+        # Delete all generated assets
+        # belonging to this package first.
+        if package_id:
+            asset_prefix = (
+                "generated-images/"
+                f"{package_id}/"
+            )
+
+            asset_keys = list_r2_keys(
+                asset_prefix
+            )
+
+            for asset_key in asset_keys:
+                delete_r2_object(
+                    asset_key
+                )
+
+        # Delete the package history JSON last.
         delete_r2_object(
             object_key
         )
@@ -234,8 +262,8 @@ def delete_history_file(
     except Exception as error:
         print(
             "Could not delete R2 "
-            f"history {filename}: "
-            f"{error}"
+            f"history package "
+            f"{filename}: {error}"
         )
 
         return False
