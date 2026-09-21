@@ -269,6 +269,21 @@ function restoreImages(
           );
           return;
         }
+      if (
+  detail?.code === "INSUFFICIENT_DISTINCT_STORIES"
+) {
+  const available =
+    detail?.available ?? 0;
+
+  const required =
+    detail?.required ?? 8;
+
+  setGenerationError(
+    `Only ${available} distinct current stories are available right now, but ${required} are required to build a complete package. Please try again later or choose another topic.`
+  );
+
+  return;
+}  
 
         setGenerationError(
           detail?.message ||
