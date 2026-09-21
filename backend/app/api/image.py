@@ -16,7 +16,10 @@ from fastapi import (
 )
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
-from app.services.package_service import update_package_asset
+from app.services.package_service import (
+    get_package_by_id,
+    update_package_asset,
+)
 from app.services.r2_service import (
     delete_r2_object,
     get_bytes_object,
@@ -709,6 +712,101 @@ def generate_image(
         if slot in allowed_slots
         else safe_platform
     )
+        # -------------------------------------------------
+    # COST PROTECTION
+    # Reuse an existing social image for the same
+    # package + slot instead of calling Cloudflare again.
+    # -------------------------------------------------
+
+    if package_id and asset_key in allowed_slots:
+        existing_package = get_package_by_id(
+            package_id
+        )
+
+        if isinstance(existing_package, dict):
+            existing_assets = (
+                existing_package.get(
+                    "assets",
+                    {},
+                )
+            )
+
+            existing_asset = (
+                existing_assets.get(
+                    asset_key
+                )
+                if isinstance(
+                    existing_assets,
+                    dict,
+                )
+                else None
+            )
+
+            if isinstance(
+                existing_asset,
+                dict,
+            ):
+                existing_object_key = (
+                    existing_asset.get(
+                        "object_key"
+                    )
+                )
+
+                if existing_object_key:
+                    try:
+                        existing_bytes = (
+                            get_bytes_object(
+                                existing_object_key
+                            )
+                        )
+
+                    except Exception:
+                        existing_bytes = None
+
+                    if existing_bytes:
+                        encoded_existing = (
+                            base64.b64encode(
+                                existing_bytes
+                            ).decode(
+                                "ascii"
+                            )
+                        )
+
+                        return {
+                            "status": "success",
+                            "package_id":
+                                package_id,
+                            "image_url": (
+                                "data:image/png;base64,"
+                                f"{encoded_existing}"
+                            ),
+                            "image_path":
+                                existing_object_key,
+                            "object_key":
+                                existing_object_key,
+                            "filename":
+                                existing_asset.get(
+                                    "filename"
+                                ),
+                            "platform":
+                                safe_platform,
+                            "slot":
+                                asset_key,
+                            "model":
+                                existing_asset.get(
+                                    "model",
+                                    "existing-r2-asset",
+                                ),
+                            "fallback_used":
+                                existing_asset.get(
+                                    "fallback_used",
+                                    False,
+                                ),
+                            "provider_error":
+                                None,
+                            "reused_existing":
+                                True,
+                        }
     primary_prompt = (
         _build_primary_prompt(
             prompt=prompt,
