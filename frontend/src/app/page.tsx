@@ -17,6 +17,9 @@ import VisualStudio from "../components/VisualStudio";
 import CarouselDeck from "../components/CarouselDeck";
 import SocialContentTabs from "../components/SocialContentTabs";
 import SystemStatus from "../components/SystemStatus";
+import BrandProfilePanel, {
+  type BrandProfile,
+} from "../components/BrandProfilePanel";
 
 const API = "/api/backend";
 
@@ -27,7 +30,15 @@ type Story = {
   title: string;
   link: string;
 };
-
+const DEFAULT_BRAND_PROFILE: BrandProfile = {
+  enabled: false,
+  companyName: "",
+  audience: "",
+  tone: "",
+  cta: "",
+  primaryColor: "",
+  secondaryColor: "",
+};
 export default function Home() {
   const packageRef =
     useRef<HTMLDivElement | null>(null);  
@@ -41,7 +52,11 @@ export default function Home() {
   const [generationError, setGenerationError] =
     useState<string | null>(null);
   const [imageGenerationNotice, setImageGenerationNotice] =
-    useState<string | null>(null);  
+    useState<string | null>(null);
+  const [brandProfile, setBrandProfile] =
+  useState<BrandProfile>(
+    DEFAULT_BRAND_PROFILE
+  );    
 
   const [linkedinImage1, setLinkedinImage1] = useState("");
   const [linkedinImage2, setLinkedinImage2] = useState("");
@@ -50,9 +65,27 @@ export default function Home() {
   const [xImage1, setXImage1] = useState("");
   const [xImage2, setXImage2] = useState("");
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
+useEffect(() => {
+  fetchHistory();
+
+  try {
+    const saved =
+      localStorage.getItem(
+        "ai-content-os-brand-profile-v1"
+      );
+
+    if (saved) {
+      setBrandProfile(
+        JSON.parse(saved)
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Could not load Brand Profile:",
+      error
+    );
+  }
+}, []);
 
   async function fetchHistory() {
     try {
@@ -232,16 +265,75 @@ function restoreImages(
 
     return response.json();
   }
+function saveBrandProfile() {
+  localStorage.setItem(
+    "ai-content-os-brand-profile-v1",
+    JSON.stringify(brandProfile)
+  );
 
+  alert("Brand Profile saved.");
+}
+
+function clearBrandProfile() {
+  setBrandProfile(
+    DEFAULT_BRAND_PROFILE
+  );
+
+  localStorage.removeItem(
+    "ai-content-os-brand-profile-v1"
+  );
+}
   async function generateContent() {
     setGenerationError(null);
     setImageGenerationNotice(null);
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${API}/package/daily?topic=${topic}`
-      );
+const params =
+  new URLSearchParams({
+    topic,
+  });
+
+if (brandProfile.enabled) {
+  params.set(
+    "brand_enabled",
+    "true"
+  );
+
+  params.set(
+    "brand_name",
+    brandProfile.companyName
+  );
+
+  params.set(
+    "brand_audience",
+    brandProfile.audience
+  );
+
+  params.set(
+    "brand_tone",
+    brandProfile.tone
+  );
+
+  params.set(
+    "brand_cta",
+    brandProfile.cta
+  );
+
+  params.set(
+    "brand_primary_color",
+    brandProfile.primaryColor
+  );
+
+  params.set(
+    "brand_secondary_color",
+    brandProfile.secondaryColor
+  );
+}
+
+const response = await fetch(
+  `${API}/package/daily?${params.toString()}`
+);
 
       const result = await response.json();
 
@@ -694,7 +786,12 @@ const dataUrl = await toPng(
 
             }
           />
-
+<BrandProfilePanel
+  value={brandProfile}
+  onChange={setBrandProfile}
+  onSave={saveBrandProfile}
+  onClear={clearBrandProfile}
+/>
             {generationError && (
               <div className="mt-5 rounded-[24px] border border-[#E4D6C4] bg-[#FFF9EF] px-6 py-5">
                 <p className="text-xs font-bold uppercase tracking-[3px] text-[#9A7654]">

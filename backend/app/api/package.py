@@ -169,6 +169,27 @@ def is_usable_article(
 @router.get("/daily")
 def daily_package(
     topic: str = Query(default="ai"),
+    brand_enabled: bool = Query(
+        default=False
+    ),
+    brand_name: str = Query(
+        default=""
+    ),
+    brand_audience: str = Query(
+        default=""
+    ),
+    brand_tone: str = Query(
+        default=""
+    ),
+    brand_cta: str = Query(
+        default=""
+    ),
+    brand_primary_color: str = Query(
+        default=""
+    ),
+    brand_secondary_color: str = Query(
+        default=""
+    ),
 ):
     feeds = RSS_FEEDS.get(
         topic,
@@ -535,15 +556,105 @@ ARTICLE CONTENT:
 
 ----------------------------------------
 """
+    def clean_brand_value(
+        value: str,
+        max_length: int = 200,
+    ):
+        return " ".join(
+            str(value or "").split()
+        )[:max_length]
 
+    brand_profile = {
+        "enabled": brand_enabled,
+        "company_name":
+            clean_brand_value(
+                brand_name,
+                120,
+            ),
+        "audience":
+            clean_brand_value(
+                brand_audience,
+                200,
+            ),
+        "tone":
+            clean_brand_value(
+                brand_tone,
+                200,
+            ),
+        "cta":
+            clean_brand_value(
+                brand_cta,
+                160,
+            ),
+        "primary_color":
+            clean_brand_value(
+                brand_primary_color,
+                30,
+            ),
+        "secondary_color":
+            clean_brand_value(
+                brand_secondary_color,
+                30,
+            ),
+    }
+
+    if brand_enabled:
+        brand_context = f"""
+BRAND PROFILE:
+
+Company:
+{brand_profile["company_name"]}
+
+Target audience:
+{brand_profile["audience"]}
+
+Tone of voice:
+{brand_profile["tone"]}
+
+Preferred CTA:
+{brand_profile["cta"]}
+
+Primary colour:
+{brand_profile["primary_color"]}
+
+Secondary colour:
+{brand_profile["secondary_color"]}
+
+BRAND SAFETY RULES:
+
+- The Brand Profile is style and audience guidance only.
+- It is NOT factual source material.
+- Never invent a relationship between the company
+  and any assigned news story.
+- Never imply the company created, endorsed,
+  partnered with or participated in a development
+  unless the assigned source explicitly states it.
+- Never convert brand-profile text into factual claims.
+- Source grounding rules always take priority.
+- Use the preferred CTA only when it fits naturally.
+- For visual prompts, use the brand colour palette
+  as an aesthetic preference where appropriate.
+- Do not put logos or written text inside generated images.
+"""
+    else:
+        brand_context = """
+BRAND PROFILE:
+
+No organisation-specific Brand Profile is active.
+Use the existing neutral professional editorial voice.
+"""
     # -------------------------------------------------
     # 9. Build one multi-story Gemini prompt
     # -------------------------------------------------
 
     prompt = f"""
 You are an experienced technology and business editor.
-
 You are creating a DAILY MULTI-STORY CONTENT PACKAGE.
+
+{brand_context}
+
+Each content slot below has already been assigned a specific
+news story.
 
 Each content slot below has already been assigned a specific
 news story.
@@ -741,6 +852,7 @@ Use exactly this JSON structure:
         content_package = generate_summary(
             prompt
         )
+
         try:
             content_package = json.loads(
                 content_package
@@ -748,16 +860,16 @@ Use exactly this JSON structure:
         except json.JSONDecodeError as error:
             raise AIServiceError(
                 f"Gemini returned invalid JSON: {str(error)}"
-            ) from error    
-        # -------------------------------------------------
-        # 10. Flatten multi-story Gemini output so existing
-        # renderers/services continue to work unchanged.
-        # -------------------------------------------------
+            ) from error
+            # -------------------------------------------------
+            # 10. Flatten multi-story Gemini output so existing
+            # renderers/services continue to work unchanged.
+            # -------------------------------------------------
 
-        linkedin_1 = content_package.get(
-            "linkedin_option_1",
-            {},
-        )
+            linkedin_1 = content_package.get(
+                "linkedin_option_1",
+                {},
+            )
 
         linkedin_2 = content_package.get(
             "linkedin_option_2",
@@ -1052,6 +1164,7 @@ Use exactly this JSON structure:
         "status": "success",
         "package_id": package_id,
         "topic": topic,
+        "brand_profile": brand_profile,
         "source": selected_stories[0]["source"],
         "article_title": selected_stories[0]["title"],
         "article_link": selected_stories[0]["link"],
