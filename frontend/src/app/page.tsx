@@ -812,7 +812,7 @@ const dataUrl = await toPng(
       {imageGenerationNotice}
     </p>
   </div>
-)}cd            
+)}       
           </div>
 
           <DashboardStats topic={topic} />
