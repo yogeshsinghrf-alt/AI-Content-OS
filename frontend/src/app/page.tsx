@@ -208,14 +208,7 @@ function restoreImages(
     const url =
       `${API}/image/generate?${params.toString()}`;
 
-    let response = await fetch(url);
-
-    if (!response.ok && response.status >= 500) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1500)
-      );
-      response = await fetch(url);
-    }
+    const response = await fetch(url);
 
     if (!response.ok) {
       let detail = "";
@@ -721,7 +714,7 @@ if (
       {imageGenerationNotice}
     </p>
   </div>
-)}            
+)}cd            
           </div>
 
           <DashboardStats topic={topic} />
