@@ -118,7 +118,7 @@ export default function VisualPostCard({
 
   const displayBrand = branded
     ? brandName!.trim().toUpperCase()
-    : "{displayBrand}";
+    : "AI CONTENT OS";
 
   const brandPrimary = branded
     ? safeHex(
