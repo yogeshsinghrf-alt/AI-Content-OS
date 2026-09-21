@@ -643,6 +643,48 @@ BRAND PROFILE:
 No organisation-specific Brand Profile is active.
 Use the existing neutral professional editorial voice.
 """
+    if brand_enabled:
+        brand_output_rules = f"""
+BRANDED OUTPUT REQUIREMENTS:
+
+- Write specifically for this audience:
+  {brand_profile["audience"]}
+
+- The tone must clearly reflect:
+  {brand_profile["tone"]}
+
+- Do not simply reproduce the default neutral editorial voice.
+  Adapt the framing, emphasis and sentence style to the
+  selected audience.
+
+- Explain why the development matters to the target audience
+  where the source supports that interpretation.
+
+- Use this preferred CTA only where it is commercially natural:
+  {brand_profile["cta"]}
+
+- Use the preferred CTA in LinkedIn option 2 and
+  Instagram option 2 only.
+  Do not force a CTA into every output.
+
+- The company name identifies the publishing brand only.
+  Never imply that the company participated in, endorsed,
+  created or partnered in the source story unless the
+  source explicitly states that.
+
+- Visual prompts should prefer this palette where appropriate:
+  Primary: {brand_profile["primary_color"]}
+  Secondary: {brand_profile["secondary_color"]}
+
+- Source grounding always takes priority over branding.
+"""
+    else:
+        brand_output_rules = """
+BRANDED OUTPUT REQUIREMENTS:
+
+Use the existing neutral editorial treatment.
+Do not add organisation-specific framing or CTA.
+"""
     # -------------------------------------------------
     # 9. Build one multi-story Gemini prompt
     # -------------------------------------------------
@@ -652,6 +694,7 @@ You are an experienced technology and business editor.
 You are creating a DAILY MULTI-STORY CONTENT PACKAGE.
 
 {brand_context}
+{brand_output_rules}
 
 Each content slot below has already been assigned a specific
 news story.
