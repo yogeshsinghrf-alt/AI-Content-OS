@@ -861,15 +861,15 @@ Use exactly this JSON structure:
             raise AIServiceError(
                 f"Gemini returned invalid JSON: {str(error)}"
             ) from error
-            # -------------------------------------------------
-            # 10. Flatten multi-story Gemini output so existing
-            # renderers/services continue to work unchanged.
-            # -------------------------------------------------
+        # -------------------------------------------------
+        # 10. Flatten multi-story Gemini output so existing
+        # renderers/services continue to work unchanged.
+        # -------------------------------------------------
 
-            linkedin_1 = content_package.get(
-                "linkedin_option_1",
-                {},
-            )
+        linkedin_1 = content_package.get(
+            "linkedin_option_1",
+            {},
+        )
 
         linkedin_2 = content_package.get(
             "linkedin_option_2",
