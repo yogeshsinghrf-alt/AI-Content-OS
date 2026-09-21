@@ -18,6 +18,10 @@ type VisualPostCardProps = {
   content: string;
   imageUrl?: string;
   source?: string;
+  brandEnabled?: boolean;
+  brandName?: string;
+  primaryColor?: string;
+  secondaryColor?: string;  
 };
 
 const platformConfig = {
@@ -89,9 +93,46 @@ export default function VisualPostCard({
   content,
   imageUrl,
   source,
+  brandEnabled,
+  brandName,
+  primaryColor,
+  secondaryColor,  
 }: VisualPostCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const config = platformConfig[platform];
+  function safeHex(
+    value: string | undefined,
+    fallback: string
+  ) {
+    return value &&
+      /^#[0-9A-Fa-f]{6}$/.test(value)
+      ? value
+      : fallback;
+  }
+
+  const branded =
+    Boolean(
+      brandEnabled &&
+      brandName?.trim()
+    );
+
+  const displayBrand = branded
+    ? brandName!.trim().toUpperCase()
+    : "{displayBrand}";
+
+  const brandPrimary = branded
+    ? safeHex(
+        primaryColor,
+        "#171615"
+      )
+    : "#171615";
+
+  const brandSecondary = branded
+    ? safeHex(
+        secondaryColor,
+        "#9A8167"
+      )
+    : "#9A8167";  
   async function createPng() {
   if (!cardRef.current) {
     throw new Error("Visual card not found.");
@@ -226,7 +267,12 @@ async function printCard() {
 
   function renderLinkedIn() {
     return (
-      <div className="relative flex h-full flex-col overflow-hidden bg-[#F6F0E6] text-[#171615]">
+      <div
+  className="relative flex h-full flex-col overflow-hidden bg-[#F6F0E6]"
+  style={{
+    color: brandPrimary,
+  }}
+>
         <div className="h-[54%] overflow-hidden">
           <div
             className="h-full w-full"
@@ -236,7 +282,12 @@ async function printCard() {
 
         <div className="flex flex-1 flex-col justify-between p-14">
           <div>
-            <p className="mb-6 text-xl font-semibold uppercase tracking-[0.28em] text-[#84796B]">
+            <p
+  className="mb-6 text-xl font-semibold uppercase tracking-[0.28em]"
+  style={{
+    color: brandSecondary,
+  }}
+>
               EXECUTIVE BRIEF
             </p>
 
@@ -252,8 +303,13 @@ async function printCard() {
             </p>
           </div>
 
-          <div className="flex items-center justify-between border-t border-[#D9D0C3] pt-6 text-lg">
-            <strong>AI CONTENT OS</strong>
+          <div
+  className="flex items-center justify-between border-t pt-6 text-lg"
+  style={{
+    borderColor: brandSecondary,
+  }}
+>
+            <strong>{displayBrand}</strong>
             <span>{source || "Industry Intelligence"}</span>
           </div>
         </div>
@@ -271,11 +327,25 @@ async function printCard() {
 
         <div className="relative flex h-full flex-col justify-between p-14">
           <div className="flex items-center justify-between">
-            <p className="text-xl font-bold tracking-[0.3em]">
-              AI CONTENT OS
+            <p
+  className="text-xl font-bold tracking-[0.3em]"
+  style={{
+    color: branded
+      ? brandSecondary
+      : "white",
+  }}
+>
+              {displayBrand}
             </p>
 
-            <div className="rounded-full border border-white/40 bg-white/10 px-6 py-3 text-lg backdrop-blur-lg">
+            <div
+  className="rounded-full border bg-white/10 px-6 py-3 text-lg backdrop-blur-lg"
+  style={{
+    borderColor: branded
+      ? brandSecondary
+      : "rgba(255,255,255,0.4)",
+  }}
+>
               EDITORIAL
             </div>
           </div>
@@ -307,7 +377,15 @@ async function printCard() {
 
   function renderX() {
     return (
-      <div className="flex h-full bg-[#111312] text-white">
+      <div
+  className="flex h-full text-white"
+  style={{
+    backgroundColor:
+      branded
+        ? brandPrimary
+        : "#111312",
+  }}
+>
         <div
           className="w-[54%] bg-cover bg-center"
           style={backgroundStyle}
@@ -316,10 +394,17 @@ async function printCard() {
         <div className="flex w-[46%] flex-col justify-between p-14">
           <div className="flex items-center justify-between">
             <strong className="text-xl tracking-[0.24em]">
-              AI CONTENT OS
+              {displayBrand}
             </strong>
 
-            <span className="rounded-full border border-white/20 px-5 py-2 text-lg">
+            <span
+  className="rounded-full border px-5 py-2 text-lg"
+  style={{
+    borderColor: branded
+      ? brandSecondary
+      : "rgba(255,255,255,0.2)",
+  }}
+>
               X
             </span>
           </div>
@@ -362,7 +447,7 @@ async function printCard() {
         <div className="relative flex h-full w-[64%] flex-col justify-between p-14">
           <div>
             <p className="text-xl font-bold tracking-[0.28em] text-[#776D61]">
-              AI CONTENT OS
+              {displayBrand}
             </p>
 
             <p className="mt-16 text-xl uppercase tracking-[0.3em] text-[#9A8E7F]">
@@ -416,7 +501,7 @@ async function printCard() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-lg font-bold tracking-[0.28em]">
-            AI CONTENT OS
+            {displayBrand}
           </p>
 
           <p className="mt-2 text-sm uppercase tracking-[0.24em] text-[#8B8175]">
@@ -505,7 +590,7 @@ async function printCard() {
         <div className="relative flex h-full flex-col justify-between p-16">
           <div className="flex items-center justify-between">
             <strong className="text-xl tracking-[0.25em]">
-              AI CONTENT OS
+              {displayBrand}
             </strong>
 
             <span className="text-7xl text-[#DCC8A8]">❝</span>

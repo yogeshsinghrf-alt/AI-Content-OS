@@ -1037,6 +1037,23 @@ const dataUrl = await toPng(
                 packageId={
                   data.package_id
                 }
+                brandEnabled={
+  Boolean(
+    data?.brand_profile?.enabled
+  )
+}
+brandName={
+  data?.brand_profile?.company_name ||
+  ""
+}
+primaryColor={
+  data?.brand_profile?.primary_color ||
+  ""
+}
+secondaryColor={
+  data?.brand_profile?.secondary_color ||
+  ""
+}
               />
 
               <div className="mt-10">

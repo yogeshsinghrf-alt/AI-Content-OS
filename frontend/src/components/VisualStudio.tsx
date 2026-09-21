@@ -28,6 +28,10 @@ type VisualStudioProps = {
   instagram2: SocialCreative;
   x1: SocialCreative;
   x2: SocialCreative;
+  brandEnabled?: boolean;
+  brandName?: string;
+  primaryColor?: string;
+  secondaryColor?: string;  
 
   infographic: {
     headline: string;
@@ -94,6 +98,10 @@ export default function VisualStudio({
   infographic,
   carousel,
   packageId,
+  brandEnabled,
+  brandName,
+  primaryColor,
+  secondaryColor,  
 }: VisualStudioProps) {
   const [activePlatform, setActivePlatform] =
     useState<StudioPlatform>("linkedin");
@@ -302,6 +310,10 @@ export default function VisualStudio({
             source={
               activeSocial.source
             }
+            brandEnabled={brandEnabled}
+            brandName={brandName}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}  
           />
         ) : null}
       </div>
