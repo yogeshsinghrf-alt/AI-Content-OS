@@ -9,7 +9,9 @@ from fastapi.responses import JSONResponse
 from app.api.storage import (
     router as storage_router,
 )
-
+from app.api.company_news import (
+    router as company_news_router,
+)
 from app.api.history import router as history_router
 from app.api.news import router as news_router
 from app.api.ai import router as ai_router
@@ -192,7 +194,11 @@ app.include_router(
     prefix="/storage",
     tags=["Storage"],
 )
-
+app.include_router(
+    company_news_router,
+    prefix="/package",
+    tags=["Company Newsroom"],
+)
 @app.get("/")
 def home():
     return {
