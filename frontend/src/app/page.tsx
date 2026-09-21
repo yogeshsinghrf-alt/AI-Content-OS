@@ -40,6 +40,8 @@ export default function Home() {
   const [historyTopic, setHistoryTopic] = useState("all");
   const [generationError, setGenerationError] =
     useState<string | null>(null);
+  const [imageGenerationNotice, setImageGenerationNotice] =
+    useState<string | null>(null);  
 
   const [linkedinImage1, setLinkedinImage1] = useState("");
   const [linkedinImage2, setLinkedinImage2] = useState("");
@@ -240,6 +242,7 @@ function restoreImages(
 
   async function generateContent() {
     setGenerationError(null);
+    setImageGenerationNotice(null);
     setLoading(true);
 
     try {
@@ -385,27 +388,83 @@ function restoreImages(
         )
       );
 
-      settled.forEach((item, index) => {
-        const key = imageJobs[index].key;
+let failedImageCount = 0;
+let fallbackImageCount = 0;
 
-        if (item.status === "rejected") {
-          console.error(
-            `${key} image failed:`,
-            item.reason
-          );
-          return;
-        }
+settled.forEach((item, index) => {
+  const key = imageJobs[index].key;
 
-        const url =
-          item.value.image_url || "";
+  if (item.status === "rejected") {
+    failedImageCount += 1;
 
-        if (key === "linkedin1") setLinkedinImage1(url);
-        if (key === "linkedin2") setLinkedinImage2(url);
-        if (key === "instagram1") setInstagramImage1(url);
-        if (key === "instagram2") setInstagramImage2(url);
-        if (key === "x1") setXImage1(url);
-        if (key === "x2") setXImage2(url);
-      });
+    console.error(
+      `${key} image failed:`,
+      item.reason
+    );
+
+    return;
+  }
+
+  const url =
+    item.value.image_url || "";
+
+  if (item.value.fallback_used) {
+    fallbackImageCount += 1;
+  }
+
+  if (key === "linkedin1") {
+    setLinkedinImage1(url);
+  }
+
+  if (key === "linkedin2") {
+    setLinkedinImage2(url);
+  }
+
+  if (key === "instagram1") {
+    setInstagramImage1(url);
+  }
+
+  if (key === "instagram2") {
+    setInstagramImage2(url);
+  }
+
+  if (key === "x1") {
+    setXImage1(url);
+  }
+
+  if (key === "x2") {
+    setXImage2(url);
+  }
+});
+
+if (
+  failedImageCount > 0 ||
+  fallbackImageCount > 0
+) {
+  const parts: string[] = [];
+
+  if (failedImageCount > 0) {
+    parts.push(
+      `${failedImageCount} visual${
+        failedImageCount === 1 ? "" : "s"
+      } could not be generated`
+    );
+  }
+
+  if (fallbackImageCount > 0) {
+    parts.push(
+      `${fallbackImageCount} visual${
+        fallbackImageCount === 1 ? "" : "s"
+      } are using fallback previews`
+    );
+  }
+
+  setImageGenerationNotice(
+    `${parts.join(
+      " and "
+    )}. The written content is still available. You can try generating a fresh package later.`
+  );
+}
 
       fetchHistory();
     } catch (error) {
@@ -652,6 +711,17 @@ function restoreImages(
                 </p>
               </div>
             )}
+{imageGenerationNotice && (
+  <div className="mt-4 rounded-[24px] border border-[#D8D5CB] bg-[#FAF8F2] px-6 py-5">
+    <p className="text-xs font-bold uppercase tracking-[3px] text-[#7B746B]">
+      Creative Asset Notice
+    </p>
+
+    <p className="mt-2 text-sm leading-6 text-[#6F675E]">
+      {imageGenerationNotice}
+    </p>
+  </div>
+)}            
           </div>
 
           <DashboardStats topic={topic} />
