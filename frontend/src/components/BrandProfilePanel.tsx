@@ -34,7 +34,7 @@ export default function BrandProfilePanel({
   }
 
   return (
-    <section className="mt-6 rounded-[28px] border border-[#E5DED3] bg-[#FFFDF8] p-6 shadow-sm">
+    <section className="mt-6 mb-8 rounded-[28px] border border-[#E5DED3] bg-[#FFFDF8] p-6 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[3px] text-[#927F68]">
