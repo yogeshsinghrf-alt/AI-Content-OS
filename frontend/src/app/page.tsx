@@ -854,7 +854,7 @@ const dataUrl = await toPng(
 
           <div className="mt-7">
             <section className="mb-6 rounded-[28px] border border-[#E3DCD1] bg-[#FFFDF8] p-6 shadow-sm">
-  <p className="text-xs font-bold uppercase tracking-[3px] text-[#927F68]">
+  <p className="text-xs font-bold uppercase tracking-[3px] text-[#A67C52]">
     SOURCE MODE
   </p>
 
@@ -870,10 +870,10 @@ const dataUrl = await toPng(
           "industry"
         )
       }
-      className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
-        sourceMode === "industry"
-          ? "bg-[#181716] text-white"
-          : "border border-[#D8D0C5] bg-white text-[#5F574F]"
+       className={`rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
+       sourceMode === "industry"
+       ? "border-[#A67C52] bg-[#A67C52] text-[#F7F3EB] shadow-sm"
+       : "border-[#D8D0C5] bg-white text-[#5F574F] hover:border-[#A67C52]/60 hover:text-[#A67C52]"
       }`}
     >
       Industry Intelligence
@@ -886,10 +886,10 @@ const dataUrl = await toPng(
           "company"
         )
       }
-      className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
-        sourceMode === "company"
-          ? "bg-[#181716] text-white"
-          : "border border-[#D8D0C5] bg-white text-[#5F574F]"
+      className={`rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
+      sourceMode === "company"
+       ? "border-[#A67C52] bg-[#A67C52] text-[#F7F3EB] shadow-sm"
+       : "border-[#D8D0C5] bg-white text-[#5F574F] hover:border-[#A67C52]/60 hover:text-[#A67C52]"
       }`}
     >
       Company Newsroom
