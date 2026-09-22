@@ -966,7 +966,15 @@ const dataUrl = await toPng(
 )}       
           </div>
 
-          <DashboardStats topic={topic} />
+          <DashboardStats
+           topic={topic}
+           sourceMode={
+           data?.source_mode ===
+           "company-news"
+           ? "company"
+           : sourceMode
+          }
+/>
           <SystemStatus />
           <HistoryPanel
             history={filteredHistory}
@@ -1103,6 +1111,12 @@ const dataUrl = await toPng(
               </div>
 
               <SocialContentTabs
+                sourceMode={
+                  data?.source_mode ===
+                  "company-news"
+                  ? "company"
+                  : "industry"
+                }  
                 linkedin1={
                   content.linkedin_option_1
                 }

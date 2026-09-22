@@ -22,6 +22,9 @@ type StoryMeta = {
 
 
 type SocialContentTabsProps = {
+  sourceMode:
+    | "industry"
+    | "company";
   linkedin1?: string;
   linkedin2?: string;
 
@@ -43,6 +46,7 @@ type SocialContentTabsProps = {
 
 
 export default function SocialContentTabs({
+  sourceMode,  
   linkedin1 = "",
   linkedin2 = "",
 
@@ -61,6 +65,8 @@ export default function SocialContentTabs({
   instagramStory1,
   instagramStory2,
 }: SocialContentTabsProps) {
+  const isCompany =
+  sourceMode === "company";
   const [platform, setPlatform] =
     useState<Platform>(
       "linkedin"
@@ -71,8 +77,9 @@ export default function SocialContentTabs({
     linkedin: {
       label: "LinkedIn",
 
-      description:
-        "Two independent business and thought-leadership stories.",
+    description: isCompany
+      ? "Two LinkedIn variants from the same approved company announcement."
+      : "Two independent business and thought-leadership stories.",
 
       option1: linkedin1,
       option2: linkedin2,
@@ -87,8 +94,9 @@ export default function SocialContentTabs({
     x: {
       label: "X",
 
-      description:
-        "Two independent fast-scanning news stories.",
+      description: isCompany
+         ? "Two X variants from the same approved company announcement."
+         : "Two independent fast-scanning news stories.",
 
       option1: x1,
       option2: x2,
@@ -103,8 +111,9 @@ export default function SocialContentTabs({
     instagram: {
       label: "Instagram",
 
-      description:
-        "Two independent visual-first editorial stories.",
+    description: isCompany
+      ? "Two Instagram variants from the same approved company announcement."
+      : "Two independent visual-first editorial stories.",
 
       option1:
         instagram1,
@@ -159,7 +168,9 @@ export default function SocialContentTabs({
         </h2>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#746B62]">
-          Each option is grounded in a different assigned article.
+           {isCompany
+           ? "Each option is grounded in the same approved company announcement."
+           : "Each option is grounded in a different assigned article."}
         </p>
       </div>
 
@@ -232,7 +243,9 @@ export default function SocialContentTabs({
 
 
         <span className="rounded-full border border-[#DDD5C9] bg-white px-4 py-2 text-xs text-[#756C63]">
-          2 independent stories
+          {isCompany
+             ? "2 content variants"
+             : "2 independent stories"}
         </span>
 
       </div>

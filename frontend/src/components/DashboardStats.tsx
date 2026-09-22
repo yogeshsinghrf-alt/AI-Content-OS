@@ -1,33 +1,61 @@
 type DashboardStatsProps = {
   topic: string;
+  sourceMode:
+    | "industry"
+    | "company";
 };
 
 export default function DashboardStats({
   topic,
+  sourceMode,
 }: DashboardStatsProps) {
+  const isCompany =
+    sourceMode === "company";
+
   const stats = [
     {
-      eyebrow: "Selected Topic",
-      value: topic.toUpperCase(),
-      detail: "Live industry intelligence",
+      eyebrow: isCompany
+        ? "Source Mode"
+        : "Selected Topic",
+
+      value: isCompany
+        ? "Newsroom"
+        : topic.toUpperCase(),
+
+      detail: isCompany
+        ? "Company-owned communications"
+        : "Live industry intelligence",
+
       number: "01",
     },
+
     {
-      eyebrow: "Story Outputs",
+      eyebrow: isCompany
+        ? "Content Outputs"
+        : "Story Outputs",
+
       value: "8",
-      detail: "Posts · Visuals · Carousel · Infographic",
+
+      detail: isCompany
+        ? "6 social posts · Carousel · Infographic"
+        : "Posts · Visuals · Carousel · Infographic",
+
       number: "02",
     },
+
     {
       eyebrow: "AI Engine",
       value: "Gemini",
-      detail: "Research-to-content generation",
+      detail:
+        "Research-to-content generation",
       number: "03",
     },
+
     {
       eyebrow: "Delivery",
-      value: "Automated",
-      detail: "Scheduled content workflow",
+      value: "Review-ready",
+      detail:
+        "Human review · Export · Publish",
       number: "04",
     },
   ];
@@ -39,7 +67,6 @@ export default function DashboardStats({
           key={stat.eyebrow}
           className="group relative overflow-hidden rounded-[26px] border border-[#E3DCD1] bg-[#FFFDF8] p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
-          {/* Number */}
           <div className="flex items-start justify-between">
             <p className="text-[10px] font-bold uppercase tracking-[3px] text-[#8B8175]">
               {stat.eyebrow}
@@ -48,14 +75,14 @@ export default function DashboardStats({
             <span
               className="text-2xl leading-none text-[#D1C5B5]"
               style={{
-                fontFamily: "Instrument Serif",
+                fontFamily:
+                  "Instrument Serif",
               }}
             >
               {stat.number}
             </span>
           </div>
 
-          {/* Main value */}
           <p
             className={`mt-7 leading-none text-[#171615] ${
               stat.value.length > 10
@@ -63,18 +90,17 @@ export default function DashboardStats({
                 : "text-4xl"
             }`}
             style={{
-              fontFamily: "Instrument Serif",
+              fontFamily:
+                "Instrument Serif",
             }}
           >
             {stat.value}
           </p>
 
-          {/* Description */}
           <p className="mt-3 min-h-[36px] text-xs leading-5 text-[#81776D]">
             {stat.detail}
           </p>
 
-          {/* Accent */}
           <div className="mt-5 h-[2px] w-10 bg-[#B8A58D] transition-all duration-300 group-hover:w-20" />
         </div>
       ))}
