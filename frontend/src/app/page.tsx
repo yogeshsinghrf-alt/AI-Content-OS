@@ -984,65 +984,114 @@ const dataUrl = await toPng(
                 }
               />
 
-              <section className="mt-8 rounded-[36px] border border-[#E7E1D8] bg-[#FFFDF8] p-8 shadow-sm">
-                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[4px] text-[#927F68]">
-                      MULTI-STORY DAILY INTELLIGENCE
-                    </p>
-                    <h2
-                      className="mt-2 text-4xl text-[#171615]"
-                      style={{
-                        fontFamily:
-                          "Instrument Serif",
-                      }}
-                    >
-                      8 independently assigned stories
-                    </h2>
-                    <p className="mt-3 max-w-3xl text-sm leading-6 text-[#70665D]">
-                      Each social option, infographic and carousel is grounded in its own assigned article.
-                    </p>
-                  </div>
+<section className="mt-8 rounded-[36px] border border-[#E7E1D8] bg-[#FFFDF8] p-8 shadow-sm">
+  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <div>
+      <p className="text-xs font-bold uppercase tracking-[4px] text-[#927F68]">
+        {data?.source_mode ===
+        "company-news"
+          ? "COMPANY NEWSROOM"
+          : "MULTI-STORY DAILY INTELLIGENCE"}
+      </p>
 
-                  <span className="w-fit rounded-full border border-[#DCD3C7] bg-white px-4 py-2 text-xs font-semibold text-[#6E655C]">
-                    {data.topic?.toUpperCase()}
-                  </span>
-                </div>
+      <h2
+        className="mt-2 text-4xl text-[#171615]"
+        style={{
+          fontFamily:
+            "Instrument Serif",
+        }}
+      >
+        {data?.source_mode ===
+        "company-news"
+          ? "One announcement, multiple communication formats"
+          : "8 independently assigned stories"}
+      </h2>
 
-                <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  {assignedStories.map(
-                    ([label, story]: any) => (
-                      <article
-                        key={label}
-                        className="rounded-[22px] border border-[#E6DED3] bg-white p-5"
-                      >
-                        <p className="text-[10px] font-bold uppercase tracking-[3px] text-[#9A8167]">
-                          {label}
-                        </p>
+      <p className="mt-3 max-w-3xl text-sm leading-6 text-[#70665D]">
+        {data?.source_mode ===
+        "company-news"
+          ? "LinkedIn, X, Instagram, infographic and carousel outputs are grounded in the same organisation-owned announcement."
+          : "Each social option, infographic and carousel is grounded in its own assigned article."}
+      </p>
+    </div>
 
-                        <p className="mt-3 text-xs font-semibold uppercase text-[#81766A]">
-                          {story.source}
-                        </p>
+    <span className="w-fit rounded-full border border-[#DCD3C7] bg-white px-4 py-2 text-xs font-semibold text-[#6E655C]">
+      {data?.source_mode ===
+      "company-news"
+        ? "COMPANY NEWS"
+        : data.topic?.toUpperCase()}
+    </span>
+  </div>
 
-                        <h3 className="mt-2 text-base font-bold leading-6 text-[#221F1C]">
-                          {story.title}
-                        </h3>
+  {data?.source_mode ===
+  "company-news" ? (
+    <article className="mt-7 rounded-[22px] border border-[#E6DED3] bg-white p-6">
+      <p className="text-[10px] font-bold uppercase tracking-[3px] text-[#9A8167]">
+        COMPANY SOURCE
+      </p>
 
-                        {story.link && (
-                          <a
-                            href={story.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-4 inline-block text-xs font-semibold text-[#78644E] underline"
-                          >
-                            Read source
-                          </a>
-                        )}
-                      </article>
-                    )
-                  )}
-                </div>
-              </section>
+      <p className="mt-3 text-xs font-semibold uppercase text-[#81766A]">
+        {data.source}
+      </p>
+
+      <h3 className="mt-2 text-lg font-bold leading-7 text-[#221F1C]">
+        {data.article_title}
+      </h3>
+
+      {data.article_link && (
+        <a
+          href={
+            data.article_link
+          }
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-block text-xs font-semibold text-[#78644E] underline"
+        >
+          Read company source
+        </a>
+      )}
+    </article>
+  ) : (
+    <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {assignedStories.map(
+        (
+          [label, story]:
+            any
+        ) => (
+          <article
+            key={label}
+            className="rounded-[22px] border border-[#E6DED3] bg-white p-5"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-[3px] text-[#9A8167]">
+              {label}
+            </p>
+
+            <p className="mt-3 text-xs font-semibold uppercase text-[#81766A]">
+              {story.source}
+            </p>
+
+            <h3 className="mt-2 text-base font-bold leading-6 text-[#221F1C]">
+              {story.title}
+            </h3>
+
+            {story.link && (
+              <a
+                href={
+                  story.link
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-block text-xs font-semibold text-[#78644E] underline"
+              >
+                Read source
+              </a>
+            )}
+          </article>
+        )
+      )}
+    </div>
+  )}
+</section>
 
               <div className="mb-8 mt-10">
                 <p className="mb-3 text-xs uppercase tracking-[4px] text-[#8B8175]">
