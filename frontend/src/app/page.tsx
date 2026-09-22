@@ -21,6 +21,10 @@ import BrandProfilePanel, {
   type BrandProfile,
 } from "../components/BrandProfilePanel";
 
+type SourceMode =
+  | "industry"
+  | "company";
+
 const API = "/api/backend";
 
 
@@ -45,6 +49,15 @@ export default function Home() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [topic, setTopic] = useState("ai");
+  const [sourceMode, setSourceMode] =
+  useState<SourceMode>(
+    "industry"
+  );
+
+  const [
+  companyArticleUrl,
+  setCompanyArticleUrl,
+  ] = useState("");  
   const [history, setHistory] = useState<any[]>([]);
   const [activeView, setActiveView] = useState("dashboard");
   const [historySearch, setHistorySearch] = useState("");
@@ -289,56 +302,124 @@ function clearBrandProfile() {
     setLoading(true);
 
     try {
-const params =
-  new URLSearchParams({
-    topic,
-  });
+let response: Response;
 
-if (brandProfile.enabled) {
-  params.set(
-    "brand_enabled",
-    "true"
+if (sourceMode === "company") {
+  const cleanUrl =
+    companyArticleUrl.trim();
+
+  if (!cleanUrl) {
+    setGenerationError(
+      "Please enter a public company-news or announcement URL."
+    );
+    return;
+  }
+
+  response = await fetch(
+    `${API}/package/company-news`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+      body: JSON.stringify({
+        article_url: cleanUrl,
+
+        brand_enabled:
+          brandProfile.enabled,
+
+        brand_name:
+          brandProfile.companyName,
+
+        brand_audience:
+          brandProfile.audience,
+
+        brand_tone:
+          brandProfile.tone,
+
+        brand_cta:
+          brandProfile.cta,
+
+        brand_primary_color:
+          brandProfile.primaryColor,
+
+        brand_secondary_color:
+          brandProfile.secondaryColor,
+      }),
+    }
   );
+} else {
+  const params =
+    new URLSearchParams({
+      topic,
+    });
 
-  params.set(
-    "brand_name",
-    brandProfile.companyName
-  );
+  if (brandProfile.enabled) {
+    params.set(
+      "brand_enabled",
+      "true"
+    );
 
-  params.set(
-    "brand_audience",
-    brandProfile.audience
-  );
+    params.set(
+      "brand_name",
+      brandProfile.companyName
+    );
 
-  params.set(
-    "brand_tone",
-    brandProfile.tone
-  );
+    params.set(
+      "brand_audience",
+      brandProfile.audience
+    );
 
-  params.set(
-    "brand_cta",
-    brandProfile.cta
-  );
+    params.set(
+      "brand_tone",
+      brandProfile.tone
+    );
 
-  params.set(
-    "brand_primary_color",
-    brandProfile.primaryColor
-  );
+    params.set(
+      "brand_cta",
+      brandProfile.cta
+    );
 
-  params.set(
-    "brand_secondary_color",
-    brandProfile.secondaryColor
+    params.set(
+      "brand_primary_color",
+      brandProfile.primaryColor
+    );
+
+    params.set(
+      "brand_secondary_color",
+      brandProfile.secondaryColor
+    );
+  }
+
+  response = await fetch(
+    `${API}/package/daily?${params.toString()}`
   );
 }
-
-const response = await fetch(
-  `${API}/package/daily?${params.toString()}`
-);
 
       const result = await response.json();
 
       if (!response.ok) {
         const detail = result?.detail;
+if (
+  detail?.code ===
+  "INVALID_COMPANY_NEWS_URL"
+) {
+  setGenerationError(
+    "Please enter a valid public company-news or announcement URL."
+  );
+  return;
+}
+
+if (
+  detail?.code ===
+  "COMPANY_NEWS_FETCH_FAILED"
+) {
+  setGenerationError(
+    "The company article could not be read. Please check that the page is public and try another URL."
+  );
+  return;
+}        
 
         if (
           detail?.code === "AI_QUOTA_UNAVAILABLE"
@@ -772,20 +853,90 @@ const dataUrl = await toPng(
           <Header />
 
           <div className="mt-7">
-            <Toolbar
-              topic={topic}
-              loading={loading}
-              onTopicChange={setTopic}
-              onGenerate={generateContent}
-              onCopyAll={copyAllContent}
-              onExportPDF={() =>
-                window.print()
-             }
-             onExportPNG={
-               exportPackagePng
+            <section className="mb-6 rounded-[28px] border border-[#E3DCD1] bg-[#FFFDF8] p-6 shadow-sm">
+  <p className="text-xs font-bold uppercase tracking-[3px] text-[#927F68]">
+    SOURCE MODE
+  </p>
 
-            }
-          />
+  <h2 className="mt-2 text-2xl font-semibold text-[#181716]">
+    Choose what AI Content OS should transform
+  </h2>
+
+  <div className="mt-5 flex flex-wrap gap-3">
+    <button
+      type="button"
+      onClick={() =>
+        setSourceMode(
+          "industry"
+        )
+      }
+      className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+        sourceMode === "industry"
+          ? "bg-[#181716] text-white"
+          : "border border-[#D8D0C5] bg-white text-[#5F574F]"
+      }`}
+    >
+      Industry Intelligence
+    </button>
+
+    <button
+      type="button"
+      onClick={() =>
+        setSourceMode(
+          "company"
+        )
+      }
+      className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+        sourceMode === "company"
+          ? "bg-[#181716] text-white"
+          : "border border-[#D8D0C5] bg-white text-[#5F574F]"
+      }`}
+    >
+      Company Newsroom
+    </button>
+  </div>
+
+  {sourceMode === "company" && (
+    <div className="mt-5">
+      <label className="mb-2 block text-xs font-bold uppercase tracking-[2px] text-[#817466]">
+        Company article or announcement URL
+      </label>
+
+      <input
+        type="url"
+        value={
+          companyArticleUrl
+        }
+        onChange={(event) =>
+          setCompanyArticleUrl(
+            event.target.value
+          )
+        }
+        placeholder="https://company.com/news/announcement"
+        className="w-full rounded-2xl border border-[#DED7CC] bg-white px-4 py-3 text-sm outline-none"
+      />
+
+      <p className="mt-2 text-xs leading-5 text-[#81776D]">
+        Use a public company newsroom, blog,
+        press release or announcement page.
+      </p>
+    </div>
+  )}
+</section>
+<Toolbar
+  topic={topic}
+  sourceMode={sourceMode}
+  loading={loading}
+  onTopicChange={setTopic}
+  onGenerate={generateContent}
+  onCopyAll={copyAllContent}
+  onExportPDF={() =>
+    window.print()
+  }
+  onExportPNG={
+    exportPackagePng
+  }
+/>
 <BrandProfilePanel
   value={brandProfile}
   onChange={setBrandProfile}
