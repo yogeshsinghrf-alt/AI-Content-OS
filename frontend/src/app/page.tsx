@@ -40,8 +40,8 @@ const DEFAULT_BRAND_PROFILE: BrandProfile = {
   audience: "",
   tone: "",
   cta: "",
-  primaryColor: "",
-  secondaryColor: "",
+  primaryColor: "#A67C52",
+  secondaryColor: "#F7F3EB",
 };
 export default function Home() {
   const packageRef =
