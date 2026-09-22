@@ -33,11 +33,16 @@ export default function BrandProfilePanel({
     });
   }
 
+  const inputClass =
+    "rounded-2xl border border-[#DED7CC] bg-white px-4 py-3 text-sm text-[#3F3933] outline-none transition focus:border-[#A67C52] focus:ring-2 focus:ring-[#A67C52]/10";
+
   return (
-    <section className="mt-6 mb-8 rounded-[28px] border border-[#E5DED3] bg-[#FFFDF8] p-6 shadow-sm">
+    <section className="mt-6 rounded-[28px] border border-[#E3D8CA] bg-[#FFFDF8] p-6 shadow-sm">
+
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
         <div>
-          <p className="text-xs font-bold uppercase tracking-[3px] text-[#927F68]">
+          <p className="text-xs font-bold uppercase tracking-[3px] text-[#A67C52]">
             BRAND PROFILE
           </p>
 
@@ -47,11 +52,11 @@ export default function BrandProfilePanel({
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#70665D]">
             Optional. Apply audience, tone, CTA and brand palette
-            while keeping every output grounded in its assigned source.
+            while keeping every output grounded in its source.
           </p>
         </div>
 
-        <label className="flex items-center gap-3 text-sm font-semibold text-[#5F574F]">
+        <label className="flex items-center gap-3 rounded-full border border-[#DED2C5] bg-white px-4 py-2.5 text-sm font-semibold text-[#5F574F]">
           <input
             type="checkbox"
             checked={value.enabled}
@@ -61,13 +66,16 @@ export default function BrandProfilePanel({
                 event.target.checked
               )
             }
-            className="h-4 w-4"
+            className="h-4 w-4 accent-[#A67C52]"
           />
+
           Apply Brand Profile
         </label>
+
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
+
         <input
           value={value.companyName}
           onChange={(event) =>
@@ -77,7 +85,7 @@ export default function BrandProfilePanel({
             )
           }
           placeholder="Company name"
-          className="rounded-2xl border border-[#DED7CC] bg-white px-4 py-3 text-sm outline-none"
+          className={inputClass}
         />
 
         <input
@@ -89,7 +97,7 @@ export default function BrandProfilePanel({
             )
           }
           placeholder="Audience — e.g. technology executives"
-          className="rounded-2xl border border-[#DED7CC] bg-white px-4 py-3 text-sm outline-none"
+          className={inputClass}
         />
 
         <input
@@ -101,7 +109,7 @@ export default function BrandProfilePanel({
             )
           }
           placeholder="Tone — e.g. authoritative, concise, premium"
-          className="rounded-2xl border border-[#DED7CC] bg-white px-4 py-3 text-sm outline-none"
+          className={inputClass}
         />
 
         <input
@@ -113,7 +121,7 @@ export default function BrandProfilePanel({
             )
           }
           placeholder="Preferred CTA — e.g. Request a pilot"
-          className="rounded-2xl border border-[#DED7CC] bg-white px-4 py-3 text-sm outline-none"
+          className={inputClass}
         />
 
         <input
@@ -124,8 +132,8 @@ export default function BrandProfilePanel({
               event.target.value
             )
           }
-          placeholder="Primary colour — e.g. #181716"
-          className="rounded-2xl border border-[#DED7CC] bg-white px-4 py-3 text-sm outline-none"
+          placeholder="Primary colour — e.g. #A67C52"
+          className={inputClass}
         />
 
         <input
@@ -136,16 +144,18 @@ export default function BrandProfilePanel({
               event.target.value
             )
           }
-          placeholder="Secondary colour — e.g. #B08B5A"
-          className="rounded-2xl border border-[#DED7CC] bg-white px-4 py-3 text-sm outline-none"
+          placeholder="Secondary colour — e.g. #F7F3EB"
+          className={inputClass}
         />
+
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
+
         <button
           type="button"
           onClick={onSave}
-          className="rounded-full bg-[#181716] px-5 py-2.5 text-sm font-semibold text-white"
+          className="rounded-full border border-[#A67C52] bg-[#A67C52] px-5 py-2.5 text-sm font-semibold text-[#F7F3EB] shadow-sm transition hover:bg-[#956F49]"
         >
           Save Profile
         </button>
@@ -153,11 +163,13 @@ export default function BrandProfilePanel({
         <button
           type="button"
           onClick={onClear}
-          className="rounded-full border border-[#D8D0C5] bg-white px-5 py-2.5 text-sm font-semibold text-[#5F574F]"
+          className="rounded-full border border-[#D8D0C5] bg-white px-5 py-2.5 text-sm font-semibold text-[#5F574F] transition hover:border-[#A67C52]/60 hover:text-[#A67C52]"
         >
           Clear
         </button>
+
       </div>
+
     </section>
   );
 }
