@@ -937,12 +937,14 @@ const dataUrl = await toPng(
     exportPackagePng
   }
 />
+<div className="mb-6">
 <BrandProfilePanel
   value={brandProfile}
   onChange={setBrandProfile}
   onSave={saveBrandProfile}
   onClear={clearBrandProfile}
 />
+</div>
             {generationError && (
               <div className="mt-5 rounded-[24px] border border-[#E4D6C4] bg-[#FFF9EF] px-6 py-5">
                 <p className="text-xs font-bold uppercase tracking-[3px] text-[#9A7654]">
