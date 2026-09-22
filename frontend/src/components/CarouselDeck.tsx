@@ -1,4 +1,4 @@
-"use client";
+
 
 import { useRef } from "react";
 import { toPng } from "html-to-image";
@@ -20,6 +20,10 @@ type CarouselDeckProps = {
   source?: string;
   imageUrl?: string;
   packageId?: string;
+  brandEnabled?: boolean;
+  brandName?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
 };
 
 function shortenText(
@@ -35,6 +39,43 @@ function shortenText(
     : text;
 }
 
+function safeHex(
+  value: string | undefined,
+  fallback: string
+) {
+  return value &&
+    /^#[0-9A-Fa-f]{6}$/.test(value)
+    ? value
+    : fallback;
+}
+
+function isLightHex(hex: string) {
+  const clean = hex.replace("#", "");
+
+  const r = parseInt(
+    clean.slice(0, 2),
+    16
+  );
+
+  const g = parseInt(
+    clean.slice(2, 4),
+    16
+  );
+
+  const b = parseInt(
+    clean.slice(4, 6),
+    16
+  );
+
+  const brightness =
+    (r * 299 +
+      g * 587 +
+      b * 114) /
+    1000;
+
+  return brightness > 180;
+}
+
 export default function CarouselDeck({
   headline,
   subtitle = "",
@@ -42,11 +83,50 @@ export default function CarouselDeck({
   source = "AI Content OS",
   imageUrl,
   packageId,
+  brandEnabled,
+  brandName,
+  primaryColor,
+  secondaryColor,
 }: CarouselDeckProps) {
   const slideRefs =
     useRef<
       (HTMLDivElement | null)[]
     >([]);
+
+  const branded = Boolean(
+    brandEnabled &&
+      brandName?.trim()
+  );
+
+  const displayBrand = branded
+    ? brandName!.trim().toUpperCase()
+    : "AI CONTENT OS";
+
+  const brandPrimary = branded
+    ? safeHex(
+        primaryColor,
+        "#171615"
+      )
+    : "#171615";
+
+  const brandSecondary = branded
+    ? safeHex(
+        secondaryColor,
+        "#9A8167"
+      )
+    : "#9A8167";
+
+  const accentOnLight = branded
+    ? isLightHex(brandSecondary)
+      ? brandPrimary
+      : brandSecondary
+    : "#927F68";
+
+  const accentOnDark = branded
+    ? isLightHex(brandSecondary)
+      ? brandSecondary
+      : "#F7F3EB"
+    : "#E2C9A5";
 
   const fallbackSlides = [
     {
@@ -125,6 +205,7 @@ export default function CarouselDeck({
 
     return await toPng(slide, {
       cacheBust: true,
+      includeQueryParams: true,
       pixelRatio: 2,
       backgroundColor: "#F7F1E7",
     });
@@ -290,7 +371,7 @@ export default function CarouselDeck({
     <section className="rounded-[32px] border border-[#E2DBD0] bg-[#FFFDF9] p-7 shadow-sm lg:p-9">
       <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[4px] text-[#927F68]">
+          <p className="text-xs font-bold uppercase tracking-[4px] text-[#A67C52]">
             Carousel Studio
           </p>
 
@@ -396,10 +477,17 @@ export default function CarouselDeck({
                         <TopBar
                           number="01"
                           dark
+                          brandLabel={displayBrand}
+                          accentColor={accentOnDark}
                         />
 
                         <div className="max-w-[94%]">
-                          <p className="mb-5 text-[9px] font-bold uppercase tracking-[4px] text-[#E2C9A5]">
+                          <p
+                            className="mb-5 text-[9px] font-bold uppercase tracking-[4px]"
+                            style={{
+                              color: accentOnDark,
+                            }}
+                          >
                             INTELLIGENCE BRIEF
                           </p>
 
@@ -458,15 +546,23 @@ export default function CarouselDeck({
                           "0"
                         )}
                         dark={index === 5}
+                        brandLabel={displayBrand}
+                        accentColor={
+                          index === 5
+                            ? accentOnDark
+                            : accentOnLight
+                        }
                       />
 
                       <div className="my-auto">
                         <p
-                          className={`text-[9px] font-bold uppercase tracking-[4px] ${
-                            index === 5
-                              ? "text-[#C7AE8D]"
-                              : "text-[#927F68]"
-                          }`}
+                          className="text-[9px] font-bold uppercase tracking-[4px]"
+                          style={{
+                            color:
+                              index === 5
+                                ? accentOnDark
+                                : accentOnLight,
+                          }}
                         >
                           {slide.label}
                         </p>
@@ -529,28 +625,34 @@ export default function CarouselDeck({
 function TopBar({
   number,
   dark = false,
+  brandLabel,
+  accentColor,
 }: {
   number: string;
   dark?: boolean;
+  brandLabel: string;
+  accentColor: string;
 }) {
   return (
     <div className="flex shrink-0 items-center justify-between">
       <p
-        className={`text-[9px] font-bold uppercase tracking-[4px] ${
-          dark
-            ? "text-white/75"
-            : "text-[#766B60]"
-        }`}
+        className="text-[9px] font-bold uppercase tracking-[4px]"
+        style={{
+          color: accentColor,
+        }}
       >
-        AI CONTENT OS
+        {brandLabel}
       </p>
 
       <span
         className={`rounded-full border px-4 py-2 text-[9px] font-bold ${
           dark
-            ? "border-white/30 text-white/80"
-            : "border-[#D3C8B8] text-[#766B60]"
+            ? "text-white/80"
+            : "text-[#766B60]"
         }`}
+        style={{
+          borderColor: accentColor,
+        }}
       >
         {number} / 06
       </span>

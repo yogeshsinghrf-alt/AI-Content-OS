@@ -1277,27 +1277,39 @@ secondaryColor={
               />
 
               <div className="mt-10">
-                <CarouselDeck
-                  headline={
-                    content.carousel_headline ||
-                    carouselStory.title ||
-                    "Industry Intelligence"
-                  }
-                  subtitle=""
-                  slides={
-                    Array.isArray(
-                      content.carousel_slides
-                    )
-                      ? content.carousel_slides
-                      : []
-                  }
-                  source={
-                    carouselStory.source
-                  }
-                  packageId={
-                    data.package_id
-                  }
-                />
+<CarouselDeck
+  headline={
+    content.carousel_headline ||
+    carouselStory.title ||
+    "Industry Intelligence"
+  }
+  subtitle=""
+  slides={
+    Array.isArray(
+      content.carousel_slides
+    )
+      ? content.carousel_slides
+      : []
+  }
+  source={
+    carouselStory.source
+  }
+  packageId={
+    data.package_id
+  }
+  brandEnabled={
+    data.brand_profile?.enabled
+  }
+  brandName={
+    data.brand_profile?.company_name
+  }
+  primaryColor={
+    data.brand_profile?.primary_color
+  }
+  secondaryColor={
+    data.brand_profile?.secondary_color
+  }
+/>
               </div>
             </div>
           )}

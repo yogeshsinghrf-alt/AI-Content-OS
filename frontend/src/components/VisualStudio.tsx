@@ -296,21 +296,25 @@ export default function VisualStudio({
       <div className="px-8 pb-10 pt-4 lg:px-10">
         {activePlatform ===
         "infographic" ? (
-          <InfographicCard
-            headline={
-              infographic.headline
-            }
-            subtitle={
-              infographic.subtitle
-            }
-            points={
-              infographic.points
-            }
-            source={
-              infographic.source
-            }
-            packageId={packageId}
-          />
+<InfographicCard
+  headline={
+    infographic.headline
+  }
+  subtitle={
+    infographic.subtitle
+  }
+  points={
+    infographic.points
+  }
+  source={
+    infographic.source
+  }
+  packageId={packageId}
+  brandEnabled={brandEnabled}
+  brandName={brandName}
+  primaryColor={primaryColor}
+  secondaryColor={secondaryColor}
+/>
         ) : activePlatform ===
           "carousel" ? (
           <div className="rounded-[28px] border border-[#DDD4C8] bg-[#FFFDF9] p-8">
