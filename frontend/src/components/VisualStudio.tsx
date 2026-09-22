@@ -22,6 +22,9 @@ type SocialCreative = {
 };
 
 type VisualStudioProps = {
+  sourceMode:
+    | "industry"
+    | "company";  
   linkedin1: SocialCreative;
   linkedin2: SocialCreative;
   instagram1: SocialCreative;
@@ -89,6 +92,7 @@ const PLATFORM_META: Record<
 };
 
 export default function VisualStudio({
+  sourceMode,
   linkedin1,
   linkedin2,
   instagram1,
@@ -135,6 +139,36 @@ export default function VisualStudio({
 
   const meta =
     PLATFORM_META[activePlatform];
+    const isCompany =
+    sourceMode === "company";
+
+  const companyDescriptions:
+    Record<
+      StudioPlatform,
+      string
+    > = {
+      linkedin:
+        "Two LinkedIn creative variants from the same approved company announcement.",
+
+      instagram:
+        "Two portrait-first creative variants from the same approved company announcement.",
+
+      x:
+        "Two wide creative variants from the same approved company announcement.",
+
+      infographic:
+        "The approved company announcement rendered as a structured four-point visual summary.",
+
+      carousel:
+        "The approved company announcement transformed into a six-slide editorial narrative.",
+    };
+
+  const activeDescription =
+    isCompany
+      ? companyDescriptions[
+          activePlatform
+        ]
+      : meta.description;  
 
   return (
     <section className="mt-12 overflow-hidden rounded-[40px] border border-[#E5DED2] bg-[#F7F3EB] shadow-[0_18px_60px_rgba(70,60,45,0.08)]">
@@ -142,7 +176,7 @@ export default function VisualStudio({
       <div className="border-b border-[#E4DDD2] px-8 py-9 lg:px-10">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[4px] text-[#8A7E70]">
+            <p className="text-xs font-semibold uppercase tracking-[4px] text-[#A67C52]">
               Creative Studio
             </p>
 
@@ -153,16 +187,22 @@ export default function VisualStudio({
                   "Instrument Serif",
               }}
             >
-              Multi-story editorial assets
+              {isCompany
+                ? "Company communications assets"
+                : "Multi-story editorial assets"}
             </h2>
 
             <p className="mt-4 max-w-3xl text-base leading-7 text-[#6E655C]">
-              Six social creatives plus a dedicated infographic and carousel, each grounded in its assigned news story.
+              {isCompany
+                ? "Six social creatives plus an infographic and carousel, all grounded in the same approved company announcement."
+                : "Six social creatives plus a dedicated infographic and carousel, each grounded in its assigned news story."}
             </p>
           </div>
 
           <div className="rounded-full border border-[#DDD5C9] bg-[#FFFDF9] px-5 py-3 text-sm text-[#6C635A]">
-            8 story outputs
+            {isCompany
+              ? "8 content outputs"
+              : "8 story outputs"}
           </div>
         </div>
       </div>
@@ -201,8 +241,8 @@ export default function VisualStudio({
                 }}
                 className={`rounded-full border px-5 py-3 text-sm font-semibold transition ${
                   activePlatform === platform
-                    ? "border-[#171615] bg-[#171615] text-white shadow-sm"
-                    : "border-[#DED7CC] bg-[#FFFDF9] text-[#675F57] hover:border-[#BEB4A5] hover:bg-white"
+                    ? "border-[#A67C52] bg-[#A67C52] text-[#F7F3EB] shadow-sm"
+                    : "border-[#DED7CC] bg-[#FFFDF9] text-[#675F57] hover:border-[#A67C52]/60 hover:bg-white hover:text-[#A67C52]"
                 }`}
               >
                 {item.label}
@@ -223,8 +263,8 @@ export default function VisualStudio({
                 }
                 className={`rounded-full px-4 py-2 text-xs font-semibold ${
                   activeOption === option
-                    ? "bg-[#9A8167] text-white"
-                    : "border border-[#D8CFC2] bg-white text-[#6E655C]"
+                    ? "bg-[#A67C52] text-[#F7F3EB]"
+                    : "border border-[#D8CFC2] bg-white text-[#6E655C] hover:border-[#A67C52]/60 hover:text-[#A67C52]"
                 }`}
               >
                 Option {option}
@@ -235,7 +275,7 @@ export default function VisualStudio({
       </div>
 
       <div className="px-8 pb-4 pt-8 lg:px-10">
-        <div className="flex flex-col gap-3 border-l-2 border-[#B6A58F] pl-5">
+        <div className="flex flex-col gap-3 border-l-2 border-[#A67C52] pl-5">
           <p className="text-xs font-bold uppercase tracking-[3px] text-[#927F68]">
             {meta.eyebrow}
           </p>
@@ -248,7 +288,7 @@ export default function VisualStudio({
           </h3>
 
           <p className="max-w-3xl text-sm leading-6 text-[#756C63]">
-            {meta.description}
+            {activeDescription}
           </p>
         </div>
       </div>
@@ -274,8 +314,10 @@ export default function VisualStudio({
         ) : activePlatform ===
           "carousel" ? (
           <div className="rounded-[28px] border border-[#DDD4C8] bg-[#FFFDF9] p-8">
-            <p className="text-xs font-bold uppercase tracking-[3px] text-[#927F68]">
-              Dedicated Carousel Story
+            <p className="text-xs font-bold uppercase tracking-[3px] text-[#A67C52]">
+              {isCompany
+                ? "Company Carousel"
+                : "Dedicated Carousel Story"}
             </p>
             <h3
               className="mt-3 text-4xl text-[#171615]"

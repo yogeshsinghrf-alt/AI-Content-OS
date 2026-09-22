@@ -1148,6 +1148,12 @@ const dataUrl = await toPng(
               />
 
               <VisualStudio
+                sourceMode={
+                   data?.source_mode ===
+                  "company-news"
+                    ? "company"
+                    : "industry"
+               }
                 linkedin1={{
                   headline:
                     content.linkedin_1_headline ||
