@@ -153,7 +153,7 @@ export default function SocialContentTabs({
       ---------------------------------- */}
 
       <div className="mb-7">
-        <p className="text-xs font-bold uppercase tracking-[4px] text-[#928575]">
+        <p className="text-xs font-bold uppercase tracking-[4px] text-[#A67C52]">
           Social Copy Studio
         </p>
 
@@ -211,8 +211,8 @@ export default function SocialContentTabs({
               className={`rounded-xl px-5 py-3 text-sm font-semibold transition ${
                 platform ===
                 value
-                  ? "bg-[#171615] text-white shadow-sm"
-                  : "text-[#675F57] hover:bg-white"
+                  ? "bg-[#A67C52] text-[#F7F3EB] shadow-sm"
+                  : "text-[#675F57] hover:bg-white hover:text-[#A67C52]"
               }`}
             >
               {label}
@@ -230,7 +230,7 @@ export default function SocialContentTabs({
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
 
         <div>
-          <p className="text-xs font-bold uppercase tracking-[3px] text-[#998875]">
+          <p className="text-xs font-bold uppercase tracking-[3px] text-[#A67C52]">
             {active.label}
           </p>
 
@@ -438,7 +438,7 @@ async function downloadPng() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
 
         <span
-          className="text-4xl text-[#A9815D]"
+          className="text-4xl text-[#A67C52]"
           style={{
             fontFamily:
               "Instrument Serif",
@@ -505,7 +505,7 @@ async function downloadPng() {
 
         <div className="rounded-[18px] bg-[#F7F3EC] p-5">
 
-          <p className="text-[10px] font-bold uppercase tracking-[2.5px] text-[#9A6F4C]">
+          <p className="text-[10px] font-bold uppercase tracking-[2.5px] text-[#A67C52]">
             {
               story.source
             }
