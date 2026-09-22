@@ -126,12 +126,46 @@ def parse_json_response(
         raise AIServiceError(
             "Gemini returned invalid JSON."
         ) from error
+def get_social_text(
+    option,
+    preferred_key: str,
+) -> str:
+    if not isinstance(
+        option,
+        dict,
+    ):
+        return ""
+
+    keys = [
+        preferred_key,
+        "post",
+        "caption",
+        "content",
+        "text",
+    ]
+
+    for key in keys:
+        value = option.get(
+            key
+        )
+
+        if (
+            isinstance(
+                value,
+                str,
+            )
+            and value.strip()
+        ):
+            return value.strip()
+
+    return ""        
 def get_source_name(
     article_url: str,
-    brand_name: str,
 ):
-    if brand_name.strip():
-        return brand_name.strip()
+    """
+    Source means the actual website/article source,
+    not the publishing Brand Profile.
+    """
 
     try:
         hostname = (
@@ -229,10 +263,7 @@ def generate_company_news(
     }
 
     source_name = get_source_name(
-        article_url,
-        brand_profile[
-            "company_name"
-        ],
+        article_url
     )
 
     if request.brand_enabled:
@@ -496,53 +527,38 @@ Use exactly this structure:
                 ),
 
             "linkedin_option_1":
-                str(
-                    linkedin_1.get(
-                        "post",
-                        "",
-                    )
+                get_social_text(
+                    linkedin_1,
+                    "post",
                 ),
 
             "linkedin_option_2":
-                str(
-                    linkedin_2.get(
-                        "post",
-                        "",
-                    )
+                get_social_text(
+                    linkedin_2,
+                    "post",
                 ),
-
             "instagram_option_1":
-                str(
-                    instagram_1.get(
-                        "caption",
-                        "",
-                    )
+                get_social_text(
+                    instagram_1,
+                    "caption",
                 ),
 
             "instagram_option_2":
-                str(
-                    instagram_2.get(
-                        "caption",
-                        "",
-                    )
-                ),
-
+                get_social_text(
+                    instagram_2,
+                    "caption",
+            ), 
             "x_option_1":
-                str(
-                    x_1.get(
-                        "post",
-                        "",
-                    )
-                ),
+                get_social_text(
+                    x_1,
+                    "post",
+          ),
 
             "x_option_2":
-                str(
-                    x_2.get(
-                        "post",
-                        "",
-                    )
-                ),
-
+                get_social_text(
+                    x_2,
+                    "post",
+            ),
             "linkedin_1_headline":
                 str(
                     linkedin_1.get(
