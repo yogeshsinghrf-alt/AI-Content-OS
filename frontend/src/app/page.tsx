@@ -1147,6 +1147,9 @@ const dataUrl = await toPng(
                 }
                 xStory1={xStory1}
                 xStory2={xStory2}
+                brandEnabled={data?.brand_profile?.enabled}
+                brandName={data?.brand_profile?.company_name}
+                primaryColor={data?.brand_profile?.primary_color}
               />
 
               <VisualStudio

@@ -42,6 +42,10 @@ type SocialContentTabsProps = {
 
   instagramStory1: StoryMeta;
   instagramStory2: StoryMeta;
+
+  brandEnabled?: boolean;
+  brandName?: string;
+  primaryColor?: string;
 };
 
 
@@ -64,9 +68,30 @@ export default function SocialContentTabs({
 
   instagramStory1,
   instagramStory2,
+
+  brandEnabled,
+  brandName,
+  primaryColor,
 }: SocialContentTabsProps) {
   const isCompany =
   sourceMode === "company";
+
+  const branded = Boolean(
+    brandEnabled &&
+      brandName?.trim()
+  );
+
+  const displayBrand = branded
+    ? brandName!.trim().toUpperCase()
+    : "AI CONTENT OS";
+
+  const brandAccent =
+    branded &&
+    primaryColor &&
+    /^#[0-9A-Fa-f]{6}$/.test(primaryColor)
+      ? primaryColor
+      : "#A67C52";
+
   const [platform, setPlatform] =
     useState<Platform>(
       "linkedin"
@@ -271,6 +296,12 @@ export default function SocialContentTabs({
           onCopy={
             copyText
           }
+          displayBrand={
+            displayBrand
+          }
+          brandAccent={
+            brandAccent
+          }
         />
 
 
@@ -288,6 +319,12 @@ export default function SocialContentTabs({
           onCopy={
             copyText
           }
+          displayBrand={
+            displayBrand
+          }
+          brandAccent={
+            brandAccent
+          }
         />
 
       </div>
@@ -303,6 +340,8 @@ function PostOption({
   content,
   story,
   onCopy,
+  displayBrand,
+  brandAccent,
 }: {
   number: string;
 
@@ -318,6 +357,9 @@ function PostOption({
     (
       text: string
     ) => void;
+
+  displayBrand: string;
+  brandAccent: string;
 }) {
 
   /*
@@ -545,8 +587,19 @@ async function downloadPng() {
      }
     </div>
 
-    {/* Bottom editorial divider */}
+    {/* Bottom editorial divider + publishing brand */}
     <div className="mt-8 border-t border-[#DDD5C9]" />
+
+<div className="mt-4 flex items-center">
+  <span
+    className="text-[10px] font-bold uppercase tracking-[2.4px]"
+    style={{
+      color: brandAccent,
+    }}
+  >
+    {displayBrand}
+  </span>
+</div>
 
       </div>
     </div>
